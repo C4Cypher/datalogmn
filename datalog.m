@@ -50,6 +50,12 @@
 :- pred unify_atoms(atom(T):in, atom(T)in, substitution(T):in, 
 	substitution(T):out) is det.
 	
+% True if there are no variables in atom
+:- pred ground_atom(atom(T):in) is semidet.
+
+:- pred atom_vars(atom(T):in, list(var(T)):out) is det.
+:- func atom_vars(atom(T)) = list(var(T)).
+	
 % A literal is an atom or it's negation.
 :- type literal(T) ---> positive(atom(T)) ; negative(atom(T)).
 
@@ -72,13 +78,21 @@
 :- mode not in = out is det.
 :- mode not out = in is det.
 
+:- pred negated(literal(T):in) is semidet.
+:- pred not_negated(literal(T):in) is semidet.
+
+% Fails if either literal is negated
+:- pred unify_literals(literal(T):in, literal(T)in, substitution(T):in, 
+	substitution(T):out) is semidet.
+	
 % True if there are no variables in atom
-:- pred is_ground(atom(T):in) is semidet.
+:- pred ground_literal(atom(T):in) is semidet.
 
-:- pred vars(atom(T):in, list(var(T)):out) is det.
-:- func vars(atom(T)) = list(var(T)).
+:- pred atom_vars(atom(T):in, list(var(T)):out) is det.
+:- func atom_vars(atom(T)) = list(var(T)).
 
-:- type rule(T)
+
+
 
 
 % pred types that can be passed as primitive rules
