@@ -17,30 +17,43 @@
 :- import module term.
 :- import module list.
 :- import module string.
+:- import module int.
 
-:- type datalog. 
+:- type datalog(T). % Type paratemerized to conform to term(T).
+:- type datalog == datalog(generic). 
 
-:- func init = datalog.
+:- func init = datalog(T).
 
-:- pred init(datalog).
+:- pred init(datalog(T)).
 :- mode empty_datalog(out) is det.
 
 % relation(name, arity) == name/arity.
 :- type relation --->
 	relation( name :: string, arity :: uint ).
+	
+:- pred relation(literal(T):in, relation:out) is det.
+:- func relation(literal(T)) = relation.
+
+:- type literal(T). 
+:- type literal == literal(generic).
+
+
+:- pred literal(string, list(term(T)), literal(T)).
+:- mode literal(in, in, out) is det.
+:- mode literal(out,out, in) is det.
+
+:- func literal(string, list(term(T))) = literal(T).
+:- mode literal(in, in) = out is det.
+:- mode literal(out, out) = in is det.
 
 
 
-:- pred stratified(datalog:in) is semidet.
 
-:- type primitive == some [T] pred(list(term(T)):in, list(term(T)):out) is nondet.
+:- type primitive == pred(list(term(T)):in, list(term(T)):out) is nondet.
 
 % If the primitive succeeds, return the input.
-:- func semidet_to_nondet(some [T] pred(list(term(T)):in is semidet)) = primitive.
+:- func semidet_to_nondet(pred(list(term(T)):in is semidet)) = primitive.
 
-% Fail if a the rules have no single stable minimal model
-:- pred stratify(datalog:in, datalog:out) is semidet.
 
 :- implementation.
 
-: type datalog.
