@@ -28,7 +28,9 @@
 :- func init = datalog(T).
 
 :- pred init(datalog(T)).
-:- mode empty_datalog(out) is det.
+:- mode init(out) is det.
+
+:- pred empty_datalog(datalog(T)::in) is semidet.
 
 % relation(name, arity) == name/arity.
 % The definitions for relation and atom are abstracted so as to ensure
@@ -114,17 +116,107 @@
 % Behavior may be undefined
 :- pred force_rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is det.
 
+:- type primitive == pred(atom(T), substution(T)).
+:- inst primitive == (pred(in, out) is nondet).
+:- mode primitive_in == in(primitive).
+:- mode pi == primitive_in.
+:- mode primitive_out == out(primitive).
+:- mode po == primitive_out.
+
 % Add a rule that calls a mercury goal for it's unifications
 % for semidet success that does not bind variables, return empty substitution
 % Don't pass new variables back in result, either bind variables to
 % ground terms or to other variables in the atom.
-:- pred primitive_rule( 
-	(pred(atom(T)::in, substitution(T)::out is nondet))::in,
-	datalog(T)::in,
-	datalog(T)::out
-) is det.
+:- pred primitive_rule(relation::in, primitive::pi, datalog(T)::in, 
+	datalog(T)::out) is det.
+	
+% Equivalent to rule(Atom :- [], !Datalog). Using variables instead of ground
+% terms in the Atom is not reccomended unless you're binding the same term in
+% multiple fields of the atom. 
+%
+% Not reccomended: foo(X,Y).  
+%
+% Acceptable: bar(X, X).  
+:- pred fact(atom(T)::in, datalog(T)::in, datalog(T)::out) is det.
 
+% ask the database a query
+% Any variables in the input atom will be replaced with gound terms in the
+% output atom, if any. 
+:- pred query(datalog(T)::in, atom(T)::in, atom(T)::out) is nondet.
 
+% Bottom up output of all facts in a bottom up manner
+% Not sure if I want to implement this
+% :- pred facts(datalog(T)::in, atom(T)::out) is nondet.
 
 :- implementation.
+
+:- import module map.
+
+:- type rule -->
+	rule(
+		head :: atom(T),
+		positive_body :: list(atom(T)),
+		negative_body :: list(atom(T))
+	) 
+;
+	primitive(primitive).
+
+:- inst rule --->
+	rule(ground, ground, ground);
+	primitive(primitive).
+
+:- mode rule_in == in(rule).
+:- mode ri == rule_in.
+
+:- mode rule_out == out(rule).
+:- mode ro == rule_out.
+	
+:- type rules == map(relation, rule).
+
+% considered using varset ... but I don't need the added functionality or
+% complexity in the internal implementation as the internal vars are supposed
+% to be completely opaque to everything but primitves, and even they aren't
+% supposed to do anything but bind vars to ground terms or other vars from
+% the same set.  I might change my mind if I need to implement stricter rules
+% on what a primitive can and cannot do with the input atom.
+:- type datalog(T) ----> datalog(rules :: rules, var_supply :: var_supply(T)),
+
+:- init(datalog(map.init,init_var_supply)).
+:- init = Datalog :- init(Datalog).
+
+:- empty_datalog(datalog(Rules, Supply)) :-
+	is_empty(Rules), Supply = init_var_supply.
+
+% The symbol type is used to intern string names for relations and atoms
+% I want symbol lookup to be by refrence instead of by value
+:- type symbol ---> symbol_string(string).
+
+:- func symbol(string) = symbol.
+:- mode symbol(in) = out is det.
+:- mode symbol(out) = in is det.
+
+% table the creation of symbols so that the same string always returns a
+% refrence to the same symbol object, instead of constructing a new one
+:- pragma memo(symbol(in) = out).
+
+symbol(String) = symbol_string(String).
+
+:- type relation == { symbol, uint }
+
+:- relation(String, Arity, {symbol(String), Arity}).
+
+:- relation(Symbol, Arity) = {symbol(String), Arity}.
+
+:- type atom(T) == {symbol, list(term(T)}.
+
+relation({Symbol, List}, {Symbol, length(List)}).
+relation(Atom) = Relation :- relation(Atom, Relation).
+
+atom(String, Terms, {symbol(string), Terms}).
+atom(String, Terms) = {symbol(string), Terms}.
+
+% TODO: unify_atoms/4
+
+
+
 
