@@ -22,6 +22,9 @@
 :- type datalog(T). % Type paratemerized to conform to term(T).
 :- type datalog == datalog(generic). 
 
+% Succeeds if the database has no circular dependencies.
+:- pred stratified(datalog(T):in) is semidet.
+
 :- func init = datalog(T).
 
 :- pred init(datalog(T)).
@@ -91,15 +94,26 @@
 :- pred atom_vars(atom(T):in, list(var(T)):out) is det.
 :- func atom_vars(atom(T)) = list(var(T)).
 
+:- type clause(T) ---> atom(T) :- list(literal(T)).
+
+% Fails if the resulting program cannot be stratified
+:- pred rule(clause(T):in, datalog(T):in, datalog(T):out) is semidet. 
+
+% Throws an error if the resulting program cannot be stratified
+:- pred det_rule(clause(T):in, datalog(T):in, datalog(T):out) is det.
+
+% Adds a rule even if it causes circular dependencies
+:- pred force_rule(clause(T):in, datalog(T):in, datalog(T):out) is det.
+
 
 
 
 
 % pred types that can be passed as primitive rules
-:- type primitive == pred(list(term(T)):in, list(term(T)):out) is nondet.
+% for semidet results that don't bind variables, return an empty substitution
+:- type primitive == pred(list(term(T)), substitution(T)).
+:- inst primitive == pred(in, out) is nondet.
 
-% If the primitive succeeds, return the input.
-:- func semidet_to_nondet(pred(list(term(T)):in is semidet)) = primitive.
 
 
 :- implementation.
