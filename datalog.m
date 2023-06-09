@@ -34,7 +34,7 @@
 :- type relation --->
 	relation( name :: string, arity :: uint ).
 	
-:- pred relation(atom(T):in, relation:out) is det.
+:- pred relation(atom(T)::in, relation::out) is det.
 :- func relation(atom(T)) = relation.
 
 % An atom is a combination of a function symbol and a list of terms.
@@ -50,13 +50,13 @@
 :- mode atom(in, in) = out is det.
 :- mode atom(out, out) = in is det.
 
-:- pred unify_atoms(atom(T):in, atom(T)in, substitution(T):in, 
-	substitution(T):out) is det.
+:- pred unify_atoms(atom(T)::in, atom(T)in, substitution(T)::in, 
+	substitution(T)::out) is det.
 	
 % True if there are no variables in atom
-:- pred ground_atom(atom(T):in) is semidet.
+:- pred ground_atom(atom(T)::in) is semidet.
 
-:- pred atom_vars(atom(T):in, list(var(T)):out) is det.
+:- pred atom_vars(atom(T)::in, list(var(T))::out) is det.
 :- func atom_vars(atom(T)) = list(var(T)).
 	
 % A literal is an atom or it's negation.
@@ -81,29 +81,29 @@
 :- mode not in = out is det.
 :- mode not out = in is det.
 
-:- pred negated(literal(T):in) is semidet.
-:- pred not_negated(literal(T):in) is semidet.
+:- pred negated(literal(T)::in) is semidet.
+:- pred not_negated(literal(T)::in) is semidet.
 
 % Fails if either literal is negated
-:- pred unify_literals(literal(T):in, literal(T)in, substitution(T):in, 
-	substitution(T):out) is semidet.
+:- pred unify_literals(literal(T)::in, literal(T)in, substitution(T)::in, 
+	substitution(T)::out) is semidet.
 	
 % True if there are no variables in atom
-:- pred ground_literal(atom(T):in) is semidet.
+:- pred ground_literal(atom(T)::in) is semidet.
 
-:- pred atom_vars(atom(T):in, list(var(T)):out) is det.
+:- pred atom_vars(atom(T)::in, list(var(T))::out) is det.
 :- func atom_vars(atom(T)) = list(var(T)).
 
 :- type clause(T) ---> atom(T) :- list(literal(T)).
 
 % Fails if the resulting program cannot be stratified
-:- pred rule(clause(T):in, datalog(T):in, datalog(T):out) is semidet. 
+:- pred rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is semidet. 
 
 % Throws an error if the resulting program cannot be stratified
-:- pred det_rule(clause(T):in, datalog(T):in, datalog(T):out) is det.
+:- pred det_rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is det.
 
 % Adds a rule even if it causes circular dependencies
-:- pred force_rule(clause(T):in, datalog(T):in, datalog(T):out) is det.
+:- pred force_rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is det.
 
 
 
