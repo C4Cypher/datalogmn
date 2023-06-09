@@ -103,16 +103,18 @@
 :- pred det_rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is det.
 
 % Adds a rule even if it causes circular dependencies
+% Behavior may be undefined
 :- pred force_rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is det.
 
-
-
-
-
-% pred types that can be passed as primitive rules
-% for semidet results that don't bind variables, return an empty substitution
-:- type primitive == pred(list(term(T)), substitution(T)).
-:- inst primitive == pred(in, out) is nondet.
+% Add a rule that calls a mercury goal for it's unifications
+% for semidet success that does not bind variables, return empty substitution
+% Don't pass new variables back in result, either bind variables to
+% ground terms or to other variables in the atom.
+:- pred primitive_rule( 
+	(pred(atom(T)::in, substitution(T)::out is nondet))::in,
+	datalog(T)::in,
+	datalog(T)::out
+) is det.
 
 
 
