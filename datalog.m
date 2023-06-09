@@ -31,8 +31,17 @@
 :- mode empty_datalog(out) is det.
 
 % relation(name, arity) == name/arity.
-:- type relation --->
-	relation( name :: string, arity :: uint ).
+% The definitions for relation and atom are abstracted so as to ensure
+% memoization of the string values.
+:- type relation.
+
+:- pred relation(string, uint, relation).
+:- mode relation(in, in, out) is det.
+:- mode relation(out, out, in) is det.
+
+:- func relation(string, uint) = relation.
+:- mode relation(in, in) = out is det.
+:- mode relation(out, out) = in is det.
 	
 :- pred relation(atom(T)::in, relation::out) is det.
 :- func relation(atom(T)) = relation.
@@ -58,6 +67,11 @@
 
 :- pred atom_vars(atom(T)::in, list(var(T))::out) is det.
 :- func atom_vars(atom(T)) = list(var(T)).
+
+:- func relation(atom(T)) = relation.
+:- func name(atom(T)) = strong.
+:- func arity(atom(T)) = uint.
+:- func terms(atom(T)) = list(term(T)).
 	
 % A literal is an atom or it's negation.
 :- type literal(T) ---> positive(atom(T)) ; negative(atom(T)).
