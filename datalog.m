@@ -61,6 +61,7 @@
 	
 % A literal is an atom or it's negation.
 :- type literal(T) ---> positive(atom(T)) ; negative(atom(T)).
+:- type literal == literal(generic).
 
 % Syntactic constructor for positive literals. Fails if literal is negated.
 % To construct a negative literal use not literal(X, Y) or negation/2
@@ -84,17 +85,10 @@
 :- pred negated(literal(T)::in) is semidet.
 :- pred not_negated(literal(T)::in) is semidet.
 
-% Fails if either literal is negated
-:- pred unify_literals(literal(T)::in, literal(T)in, substitution(T)::in, 
-	substitution(T)::out) is semidet.
-	
-% True if there are no variables in atom
-:- pred ground_literal(atom(T)::in) is semidet.
 
-:- pred atom_vars(atom(T)::in, list(var(T))::out) is det.
-:- func atom_vars(atom(T)) = list(var(T)).
 
 :- type clause(T) ---> atom(T) :- list(literal(T)).
+:- type clause == clause(generic).
 
 % Fails if the resulting program cannot be stratified
 :- pred rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is semidet. 
