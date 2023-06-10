@@ -238,7 +238,8 @@ name({ symbol_string(Name), _ }) = Name.
 arity({_, List}) = length(List).
 terms({_, List}) = List.
 
-literal(Name, List, positive({symbol(Name), List}).
+literal(Name, List, positive({symbol(Name), List})).
+literal(Name, List) = positive({symbol(Name), List}).
 
 negation(positive(Atom),negative(Atom)).
 negation(negative(Atom),positive(Atom)).
