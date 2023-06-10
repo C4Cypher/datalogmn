@@ -74,7 +74,7 @@
 :- func terms(atom(T)) = list(term(T)).
 	
 % A literal is an atom or it's negation.
-:- type literal(T) ---> positive(atom(T)) ; negative(atom(T)).
+:- type literal(T) ---> +atom(T) ; -atom(T).
 :- type literal == literal(generic).
 
 % Syntactic constructor for positive literals. Fails if literal is negated.
@@ -149,6 +149,7 @@
 :- implementation.
 
 :- import module map.
+:- import module require.
 
 :- type rule -->
 	rule(
@@ -187,7 +188,7 @@
 
 % The symbol type is used to intern string names for relations and atoms
 % I want symbol lookup to be by refrence instead of by value
-:- type symbol ---> symbol_string(string).
+:- type symbol ---> { string }.
 
 :- func symbol(string) = symbol.
 :- mode symbol(in) = out is det.
@@ -197,15 +198,15 @@
 % refrence to the same symbol object, instead of constructing a new one
 :- pragma memo(symbol(in) = out).
 
-symbol(String) = symbol_string(String).
+symbol(String) = { String }.
 
-:- type relation == { symbol, uint }
+:- type relation ---> { symbol, uint }
 
 :- relation(String, Arity, {symbol(String), Arity}).
 
 :- relation(Symbol, Arity) = {symbol(String), Arity}.
 
-:- type atom(T) == {symbol, list(term(T)}.
+:- type atom(T) ---> {symbol, list(term(T)}.
 
 
 atom(String, Terms, {symbol(string), Terms}).
@@ -238,17 +239,18 @@ name({ symbol_string(Name), _ }) = Name.
 arity({_, List}) = length(List).
 terms({_, List}) = List.
 
-literal(Name, List, positive({symbol(Name), List})).
-literal(Name, List) = positive({symbol(Name), List}).
+literal(Name, List, +{symbol(Name), List}).
+literal(Name, List) = +{symbol(Name), List}.
 
-negation(positive(Atom),negative(Atom)).
-negation(negative(Atom),positive(Atom)).
+negation(+Atom,-Atom).
+negation(-Atom,+Atom).
 
-not positive(Atom) = negative(Atom).
-not negative(Atom) = positive(Atom).
-
-negated(negative(_)).
-not_negated(positive(_)).
+not A = B :- negation(A,B).
 
 
+negated(+_).
+not_negated(-_).
 
+%TODO: Implement rules and queries
+
+% pred that renames terms
