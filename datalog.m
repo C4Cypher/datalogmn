@@ -44,9 +44,6 @@
 :- func relation(string, uint) = relation.
 :- mode relation(in, in) = out is det.
 :- mode relation(out, out) = in is det.
-	
-:- pred relation(atom(T)::in, relation::out) is det.
-:- func relation(atom(T)) = relation.
 
 % An atom is a combination of a function symbol and a list of terms.
 % In implementation, the string symbol will be interned
@@ -62,16 +59,17 @@
 :- mode atom(out, out) = in is det.
 
 :- pred unify_atoms(atom(T)::in, atom(T)in, substitution(T)::in, 
-	substitution(T)::out) is det.
+	substitution(T)::out) is semidet.
 	
 % True if there are no variables in atom
 :- pred ground_atom(atom(T)::in) is semidet.
+:- pred ground_atom_in_bindings(atom(T)::in, substitution(T)::in) is semidet.
 
 :- pred atom_vars(atom(T)::in, list(var(T))::out) is det.
 :- func atom_vars(atom(T)) = list(var(T)).
 
 :- func relation(atom(T)) = relation.
-:- func name(atom(T)) = strong.
+:- func name(atom(T)) = string.
 :- func arity(atom(T)) = uint.
 :- func terms(atom(T)) = list(term(T)).
 	
@@ -209,14 +207,47 @@ symbol(String) = symbol_string(String).
 
 :- type atom(T) == {symbol, list(term(T)}.
 
-relation({Symbol, List}, {Symbol, length(List)}).
-relation(Atom) = Relation :- relation(Atom, Relation).
 
 atom(String, Terms, {symbol(string), Terms}).
 atom(String, Terms) = {symbol(string), Terms}.
 
-% TODO: unify_atoms/4
+unify_atoms({Symbol, ListA}, {Symbol, ListB}, !Substitution) :-
+	unify_term_list(ListA, ListB, !Substitution).
+	
+:- pred term_list_is_ground(list(term(T))::in) is semidet.
 
+term_list_is_ground([]).
+term_list_is_ground([ X | XS ]) :- is_ground(X), term_list_is_ground(XS).
+
+ground_atom({_, List}) :- term_list_is_ground(List).
+
+:- pred list_ground_in_bindings(list(term(T)::in, substitution(T)::in)
+	is semidet.
+
+list_ground_in_bindings([]).
+list_ground_in_bindings([ X | XS ], Sub) :-	is_ground_in_bindings(X, Sub), 
+	list_ground_in_bindings(XS, Sub).
+	
+ground_atom_in_bindings({_, List}, Sub) :- list_ground_in_bindings(List, Sub).
+
+atom_vars({_ , Terms}, vars_list(Terms)).
+atom_vars({_ , Terms}) = vars_list(Terms).
+
+relation({Symbol, List}) = {Symbol, length(List)}.
+name({ symbol_string(Name), _ }) = Name.
+arity({_, List}) = length(List).
+terms({_, List}) = List.
+
+literal(Name, List, positive({symbol(Name), List}).
+
+negation(positive(Atom),negative(Atom)).
+negation(negative(Atom),positive(Atom)).
+
+not positive(Atom) = negative(Atom).
+not negative(Atom) = positive(Atom).
+
+negated(negative(_)).
+not_negated(positive(_)).
 
 
 
