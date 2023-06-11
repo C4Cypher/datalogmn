@@ -45,6 +45,11 @@
 :- mode relation(in, in) = out is det.
 :- mode relation(out, out) = in is det.
 
+% syntactic sugar
+:- func string/uint = relation.
+:- mode in/in = out is det.
+:- mode out/out = in is det.
+
 % An atom is a combination of a function symbol and a list of terms.
 % In implementation, the string symbol will be interned
 :- type atom(T). 
@@ -178,7 +183,7 @@
 % supposed to do anything but bind vars to ground terms or other vars from
 % the same set.  I might change my mind if I need to implement stricter rules
 % on what a primitive can and cannot do with the input atom.
-:- type datalog(T) ----> datalog(rules :: rules, var_supply :: var_supply(T)),
+:- type datalog(T) ----> datalog(rules :: rules, var_supply :: var_supply(T)).
 
 :- init(datalog(map.init,init_var_supply)).
 :- init = Datalog :- init(Datalog).
@@ -204,7 +209,9 @@ symbol(String) = { String }.
 
 :- relation(String, Arity, {symbol(String), Arity}).
 
-:- relation(Symbol, Arity) = {symbol(String), Arity}.
+:- relation(String, Arity) = {symbol(String), Arity}.
+
+String/Arity = relation(String, Arity).
 
 :- type atom(T) ---> {symbol, list(term(T)}.
 
@@ -247,10 +254,53 @@ negation(-Atom,+Atom).
 
 not A = B :- negation(A,B).
 
-
 negated(+_).
 not_negated(-_).
 
-%TODO: Implement rules and queries
+% Variable renaming for rule insertion into datalog database
 
-% pred that renames terms
+:- pred rename_var(var(T)::in, var(T)::out,
+	renaming(T)::in, renaming(T)::out,
+	var_supply(T)::in, var_supply(T)::out) is det.
+	
+rename_var(!Var, !Map, !Supply) :-
+	search(!.Map, !Var)
+;
+	New = create_var(!Supply),
+	insert(!.Var, New, !Map),
+	!:Var = New.
+	
+:- pred rename_vars(list(var(T))::in, list(var(T))::out,
+	renaming(T)::in, renaming(T)::out,
+	var_supply(T)::in, var_supply(T)::out) is det.
+	
+rename_vars([], [], !Map, !Supply).
+
+rename_vars([ !.Var | !.List ], [!:Var | !:List ], !Map, !Supply) :-
+	rename_var(!Var, !Map, !Supply),
+	rename_vars(!List, !Map, !Supply).
+	
+:- func rename_var(var(T)::in, renaming(T)::in, renaming(T)::out,
+	var_supply(T)::in, var_supply(T)::out) = var(T)::out is det.
+	
+rename_var(Old, !Map, !Supply) = New :- rename_var(Old, New, !Map, !Supply).
+
+:- pred rename_atom( atom(T)::in, atom(T)::out, 
+	renaming(T)::in, renaming(T)::out,
+	var_supply(T)::in, var_supply(T)::out) is det.
+	
+rename_atom( { Symbol, !.Terms }, { Symbol, !:Terms }, !Map, !Supply) :-
+	!.Vars = vars_list(!.Terms),
+	rename_vars(!Vars, !Map, !Supply),
+	apply_renaming_in_terms(!.Map, !Terms).
+	
+:- pred rename_atoms( list(atom(T))::in, list(atom(T)::out,
+	renaming(T)::in, renaming(T)::out,
+	var_supply(T)::in, var_supply(T)::out) is det.
+	
+rename_atoms([], [], !Map, !Supply).
+
+rename_atoms([ !.Atom | !.List ], [ !:Atom | !:List ], !Map, !Supply) :-
+	rename_atom(!Atom, !Map, !Supply),
+	rename_atoms(!List, !Map, !Supply).
+	
