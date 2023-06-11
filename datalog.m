@@ -32,10 +32,15 @@
 
 :- pred empty_datalog(datalog(T)::in) is semidet.
 
-% relation(name, arity) == name/arity.
-% The definitions for relation and atom are abstracted so as to ensure
-% memoization of the string values.
-:- type relation.
+% Type for the string functors of atoms
+% When constructing symbols, the string values are interned
+:- type symbol.
+
+:- func symbol(string) = symbol.
+:- mode symbol(in) = out is det.
+:- mode symbol(out) = in is det.
+
+:- type relation ---> symbol/uint.
 
 :- pred relation(string, uint, relation).
 :- mode relation(in, in, out) is det.
@@ -45,14 +50,10 @@
 :- mode relation(in, in) = out is det.
 :- mode relation(out, out) = in is det.
 
-% syntactic sugar
-:- func string/uint = relation.
-:- mode in/in = out is det.
-:- mode out/out = in is det.
 
 % An atom is a combination of a function symbol and a list of terms.
 % In implementation, the string symbol will be interned
-:- type atom(T). 
+:- type atom(T) ---> {symbol, list(term(T)}.
 :- type atom == atom(generic).
 
 :- pred atom(string, list(term(T)), atom(T)).
@@ -195,9 +196,6 @@
 % I want symbol lookup to be by refrence instead of by value
 :- type symbol ---> { string }.
 
-:- func symbol(string) = symbol.
-:- mode symbol(in) = out is det.
-:- mode symbol(out) = in is det.
 
 % table the creation of symbols so that the same string always returns a
 % refrence to the same symbol object, instead of constructing a new one
@@ -205,15 +203,9 @@
 
 symbol(String) = { String }.
 
-:- type relation ---> { symbol, uint }
+:- relation(String, Arity, symbol(String)/Arity).
 
-:- relation(String, Arity, {symbol(String), Arity}).
-
-:- relation(String, Arity) = {symbol(String), Arity}.
-
-String/Arity = relation(String, Arity).
-
-:- type atom(T) ---> {symbol, list(term(T)}.
+:- relation(String, Arity) = symbol(String)/Arity.
 
 
 atom(String, Terms, {symbol(string), Terms}).
