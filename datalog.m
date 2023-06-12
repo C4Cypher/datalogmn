@@ -300,9 +300,85 @@ rename_atoms([ !.Atom | !.List ], [ !:Atom | !:List ], !Map, !Supply) :-
 	rename_atom(!Atom, !Map, !Supply),
 	rename_atoms(!List, !Map, !Supply).
 
- % stratified(Datalog) :- stratification(Datalog, Stratification)
- % oh lawd this is an intimidating one, moreso than query eval
- 
- :- pred stratification(datalog(T)::in, map(relation, int)::out).
+
  
  
+
+% Stratification
+% oh lawd this is an intimidating one, moreso than query eval
+% I cranked these out in a fuge, don't know if they're valid or work as
+% intended, but I'm proud that I came up with it all.
+% Going through Tarjan's Algorithms in a purely declarative functional manner
+% would have been tourtured, this seems more elegant, will need to test for 
+% correctness
+ 
+:- type stratification --->
+	relation >= relation ;
+	relation > relation ;
+	base(relation).
+	
+:- pred stratify(rules::in, stratification::out) is nondet.
+:- pragma minimal_model(stratify/2).
+
+stratify(Rules, Stratification) :-
+	member(Rules, Relation, Rule), (
+		Stratification = base(Relation), 
+		not stratify(Rules, Rule, relation(Rule) > _),
+		member(Rules, OtherRelation, _),
+		stratify(Rules, Rule, Relation >= OtherRelation),
+		not stratify(Rules, OtherRelation, base(OtherRelation))
+	;
+		member(Rules OtherRelation, _),
+		stratify(Rules, Rule, Stratification), (
+			Stratification = Relation >= OtherRelation,
+			not stratify(Rules, OtherRelation, OtherRelation > Relation)
+		;
+			Stratification = Relation > OtherRelation,
+			not stratify(Rules, OtherRelation, OtherRelation >= Relation)
+		)
+	).
+	
+	
+		
+	
+:- pred stratify(rules::in, rule::in, stratification::out) is nondet.
+:- pragma minimal_model(stratify/3).
+
+stratify(Rules, Rule, Stratification) :-
+		Stratifcation = base(relation(Rule)), Rule = primitive(_) 
+	;
+		member(Atom, Rule ^ postive_body),
+		member(Rules, relation(Atom), BodyRule),
+		(
+			Stratification = relation(Rule) >= relation(BodyRule),
+			( stratify(Rules, BodyRule, base(BodyRule))
+			; not stratify(Rules, BodyRule, 
+				relation(BodyRule) > relation(Rule))
+			)
+		;
+			Stratification = relation(Rule) >= relation(OtherRule),
+			stratify(Rules, BodyRule, 
+				relation(BodyRule) >= relation(OtherRule)),
+			not stratify(Rules, BodyRule, 
+				relation(OtherRule) > relation (Rule))
+		)
+	;
+		member(Atom, Rule ^ negative_body),
+		member(Rules, relation(Atom), BodyRule),
+		(
+			Stratification = relation(Rule) > relation(BodyRule),
+			( stratify(Rules, BodyRule, base(BodyRule))
+			; not stratify(Rules, BodyRule, 
+				relation(BodyRule) >= relation(Rule))
+			)
+		;
+			Stratification = relation(Rule) > relation(OtherRule),
+			stratify(Rules, BodyRule, 
+				relation(BodyRule) > relation(OtherRule)),
+			not stratify(Rules, BodyRule, 
+				relation(OtherRule) >= relation(Rule))
+		).
+		
+% If I try to explain how this works without 20 min to analyze it,
+% my brain will melt
+			
