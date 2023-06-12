@@ -22,8 +22,7 @@
 :- type datalog(T). % Type paratemerized to conform to term(T).
 :- type datalog == datalog(generic). 
 
-% Succeeds if the database has no circular dependencies.
-:- pred stratified(datalog(T):in) is semidet.
+
 
 :- func init = datalog(T).
 
@@ -49,6 +48,11 @@
 :- func relation(string, uint) = relation.
 :- mode relation(in, in) = out is det.
 :- mode relation(out, out) = in is det.
+
+% Succeeds if the database has no circular dependencies.
+:- pred stratified(datalog(T):in) is semidet.
+
+:- pred stratification(datalog(T):in, map(relation, uint)::out) is semidet.
 
 
 % An atom is a combination of a function symbol and a list of terms.
@@ -120,8 +124,8 @@
 % Behavior may be undefined
 :- pred force_rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is det.
 
-:- type primitive == pred(atom(T), substution(T)).
-:- inst primitive == (pred(in, out) is nondet).
+:- type primitive == pred(atom(T), substitution(T), substution(T)).
+:- inst primitive == (pred(in, in, out) is nondet).
 :- mode primitive_in == in(primitive).
 :- mode pi == primitive_in.
 :- mode primitive_out == out(primitive).
@@ -157,7 +161,7 @@
 :- import module map.
 :- import module require.
 
-:- type rule -->
+:- type rule(T) -->
 	rule(
 		head :: atom(T),
 		positive_body :: list(atom(T)),
@@ -176,7 +180,7 @@
 :- mode rule_out == out(rule).
 :- mode ro == rule_out.
 	
-:- type rules == map(relation, rule).
+:- type rules(T) == multi_map(relation, rule(T)).
 
 % considered using varset ... but I don't need the added functionality or
 % complexity in the internal implementation as the internal vars are supposed
@@ -295,4 +299,10 @@ rename_atoms([], [], !Map, !Supply).
 rename_atoms([ !.Atom | !.List ], [ !:Atom | !:List ], !Map, !Supply) :-
 	rename_atom(!Atom, !Map, !Supply),
 	rename_atoms(!List, !Map, !Supply).
-	
+
+ % stratified(Datalog) :- stratification(Datalog, Stratification)
+ % oh lawd this is an intimidating one, moreso than query eval
+ 
+ :- pred stratification(datalog(T)::in, map(relation, int)::out).
+ 
+ 
