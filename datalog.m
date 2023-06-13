@@ -89,6 +89,9 @@
 :- pred ground_atom(atom(T)::in) is semidet.
 :- pred ground_atom_in_bindings(atom(T)::in, substitution(T)::in) is semidet.
 
+:- pred apply_substitution_in_atom(substitution(T)::in, atom(T)::in, 
+	atom(T)::out) is det.
+
 :- pred atom_vars(atom(T)::in, list(var(T))::out) is det.
 :- func atom_vars(atom(T)) = list(var(T)).
 
@@ -439,7 +442,19 @@ primitive_rule(Relation, Primitive,
 fact(Atom, !Datalog) :- force_rule(Atom :- [], !Datalog).
 
 
-% Queries
+% Queries 
+
+query(datalog(Rules, VarSupply), Query, Result) :-
+	rename_atom(Query, Goal, init, _, VarSupply,_), % Rename variables in query
+	subgoal(Rules, [ +Goal ], init, Substitution),
+	ground_atom_in_bindings(Goal, Substitution),
+	% Apply substitution
+
+% SLDNF Resolution
+:- pred subgoal(rules::in, list(literal(T))::in, substitution(T)::in, 
+	substitution(T)::out) is nondet.
+	
+
 
 
 	
