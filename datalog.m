@@ -186,17 +186,10 @@
 		negative_body :: list(atom(T))
 	) 
 ;
-	primitive(primitive).
+	primitive(
+		pred(atom(T)::in, substitution(T)::in, substitution(T)::out) is nondet
+	).
 
-:- inst rule --->
-	rule(ground, ground, ground);
-	primitive(primitive).
-
-:- mode rule_in == in(rule).
-:- mode ri == rule_in.
-
-:- mode rule_out == out(rule).
-:- mode ro == rule_out.
 	
 :- type rules(T) == multi_map(relation, rule(T)).
 
@@ -330,7 +323,8 @@ rename_atoms([ !.Atom | !.List ], [ !:Atom | !:List ], !Map, !Supply) :-
 % correctness
 
 % These calls must be tabled, due to the heavily recursive nature of the dfs
-% I'm sure there's a more 'efficient' implementation
+% I'm sure there's a more 'efficient' implementation, goal floundering is
+% almost garunteed
  
 
 	
@@ -435,6 +429,8 @@ det_rule(Clause, !Datalog) :-
 ;
 	unexpected($module, $pred, "Added rule renders datalog unstratisfiable.").
 	
-
+primitive_rule(Relation, Primitive, 
+	datalog(!.Rules, Supply), datalog(!:Rules, Supply)) :-
+	add(Relation, primitive(Primitive), !Rules).
 
 	
