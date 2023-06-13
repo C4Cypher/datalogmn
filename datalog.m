@@ -136,6 +136,9 @@
 
 % Adds a rule even if it causes circular dependencies
 % Behavior may be undefined
+%
+% Note that if a rule is added that renders a datalog database unstratifiable
+% any subsequent use of rule/3 will fail and det_rule/3 will throw an error.
 :- pred force_rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is det.
 
 :- type primitive == pred(atom(T), substitution(T), substution(T)).
@@ -325,6 +328,9 @@ rename_atoms([ !.Atom | !.List ], [ !:Atom | !:List ], !Map, !Supply) :-
 % Going through Tarjan's Algorithms in a purely declarative functional manner
 % would have been tourtured, this seems more elegant, will need to test for 
 % correctness
+
+% These calls must be tabled, due to the heavily recursive nature of the dfs
+% I'm sure there's a more 'efficient' implementation
  
 
 	
@@ -341,30 +347,21 @@ stratify(Rules, Stratification) :-
 
 stratify(Rules, Relation, Strat) :-
 	member(Rules, Relation, Rule), 
-	(
-		Strat = base(Relation),	
-		not stratify(Rules, Relation, Relation > _),
-		not	(
-			member(Rules, OtherRelation, _)
-			stratify(Rules, Relation, Relation >= OtherRelation),
-			not stratify(Rules, OtherRelation, base(OtherRelation)
-		)		
-	;
-		
+	(	% A >= B if A calls B in it's body in a positive context
 		member(positive_body(Rule), Atom),
 		BodyRelation = relation(Atom),
 		Strat = Relation >= BodyRelation
-	;
+	;	% A >= C :- A >= B, B >= C.
 		member(Rules, RelationA, _),
 		stratify(Rules, Relation, Relation >= RelationA)
 		member(Rules, RelationB, _),
 		stratify(Rules, RelationA, RelationA >= RelationB),
 		Strat = Relation >= RelationB
-	;
+	;	% A > B if A calls B in a negative context
 		member(negative_body(Rule), Atom),
 		BodyRelation = relation(Atom),
 		Strat = Relation > BodyRelation
-	;
+	;	% A > C :- A > B, ( B > C ; B >= C ).
 		member(Rules, RelationA, _),
 		stratify(Rules, Relation, Relation > RelationA)
 		member(Rules, RelationB, _),
@@ -374,6 +371,14 @@ stratify(Rules, Relation, Strat) :-
 			stratify(Rules, RelationA, RelationA >= RelationB)
 		),
 		Strat = Relation > RelationB
+	;	% base(A) :- not A > _, not ( A >= B, not base(B) ).
+		Strat = base(Relation),	
+		not stratify(Rules, Relation, Relation > _),
+		not	(
+			member(Rules, OtherRelation, _)
+			stratify(Rules, Relation, Relation >= OtherRelation),
+			not stratify(Rules, OtherRelation, base(OtherRelation)
+		)
 	).
 	
 :- pred stratified_rules(rules::in) is semidet.
@@ -411,19 +416,6 @@ force_rule(!.Head :- Body,
 	rename_atoms(!Negative, !Renaming, !Supply),
 	add(relation(!:Head), rule(!:Head, !:Positive, !:Negative), !Rules).
 	
-rule(Clause, !Datalog) :- force_rule(Clause, !Datalog), stratified(!:Datalog).
-
-det_rule(Clause, !Datalog) :-
-	force_rule(Clause, !Datalog), stratified(!:Datalog)
-;
-	unexpected($module, $pred, "Added rule renders datalog unstratisfiable.").
-	
-
-
-
-
-
-
 % sort_body(Literals, Positive, Negative)
 :- pred sort_body(list(literal(T))::in, 
 	list(atom(T))::out, list(atom(T))::out) is det.
@@ -435,4 +427,14 @@ sort_body([+Atom | Literals ], [ Atom | Positive ], Negative) :-
 	
 sort_body([-Atom | Literals ], Positive, [ Atom | Negative ]) :- 
 	sort_body(Literals, Positive, Negative).
+	
+rule(Clause, !Datalog) :- force_rule(Clause, !Datalog), stratified(!:Datalog).
+
+det_rule(Clause, !Datalog) :-
+	force_rule(Clause, !Datalog), stratified(!:Datalog)
+;
+	unexpected($module, $pred, "Added rule renders datalog unstratisfiable.").
+	
+
+
 	
