@@ -52,7 +52,21 @@
 % Succeeds if the database has no circular dependencies.
 :- pred stratified(datalog(T):in) is semidet.
 
-:- pred stratification(datalog(T):in, map(relation, uint)::out) is semidet.
+
+:- type stratification --->
+	relation >= relation ;
+	relation > relation ;
+	base(relation).
+	
+% Nondeterministically returns all of the stratification constraints on
+% relations in a Datalog database
+% RelationA >= RelationB if RelationA can call RelationB in a positive context
+% RelationA >  RelationB if RelationA can call RelationB in a negative context
+% base(Relation) if Relation has no dependencies that require it to be
+% stratified at a level greater than 0 (in essence not Relation > _)
+% Fails on an empty database
+
+:- pred stratification(datalog(T):in, stratification::out) is nondet.
 
 
 % An atom is a combination of a function symbol and a list of terms.
@@ -160,6 +174,7 @@
 
 :- import module map.
 :- import module require.
+:- import module maybe.
 
 :- type rule(T) -->
 	rule(
@@ -260,11 +275,13 @@ not_negated(-_).
 	var_supply(T)::in, var_supply(T)::out) is det.
 	
 rename_var(!Var, !Map, !Supply) :-
-	search(!.Map, !Var)
-;
-	New = create_var(!Supply),
-	insert(!.Var, New, !Map),
-	!:Var = New.
+	NewVar = create_var(!.Supply, NewSupply),
+	search_insert(!.Var, New, FoundVar, !Map),
+	if FoundVar = yes(!:Var) then !:Supply = !.Supply
+	else (
+		!:Var = NewVar,
+		!:Supply = NewSupply
+	).
 	
 :- pred rename_vars(list(var(T))::in, list(var(T))::out,
 	renaming(T)::in, renaming(T)::out,
@@ -312,10 +329,7 @@ rename_atoms([ !.Atom | !.List ], [ !:Atom | !:List ], !Map, !Supply) :-
 % would have been tourtured, this seems more elegant, will need to test for 
 % correctness
  
-:- type stratification --->
-	relation >= relation ;
-	relation > relation ;
-	base(relation).
+
 	
 :- pred stratify(rules::in, stratification::out) is nondet.
 :- pragma minimal_model(stratify/2).
@@ -384,3 +398,6 @@ stratified_rules(Rules) :- not (
 ).
 
 stratified(datalog(Rules, _)) :- stratified_rules(Rules).
+
+stratification(datalog(Rules, ), Stratification) :- 
+	stratify(Rules, Stratification).
