@@ -318,9 +318,6 @@ rename_atoms([ !.Atom | !.List ], [ !:Atom | !:List ], !Map, !Supply) :-
 	rename_atoms(!List, !Map, !Supply).
 
 
- 
- 
-
 % Stratification
 % oh lawd this is an intimidating one, moreso than query eval
 % I cranked these out in a fuge, don't know if they're valid or work as
@@ -399,5 +396,43 @@ stratified_rules(Rules) :- not (
 
 stratified(datalog(Rules, _)) :- stratified_rules(Rules).
 
-stratification(datalog(Rules, ), Stratification) :- 
+stratification(datalog(Rules, _), Stratification) :- 
 	stratify(Rules, Stratification).
+	
+% Rules, I put this part after stratification due to the stratification 
+% checking inherent in rule/3 and det_rule/3
+
+force_rule(!.Head :- Body, 
+	datalog(!.Rules, !.Supply), datalog(!:Rules, !:Supply)) :-
+	sort_body(Body, !:Positive, !:Negative),
+	!.Renaming = init, % map of variables to be renamed
+	rename_atom(!Head, !Renaming, !Supply),
+	rename_atoms(!Positive, !Renaming, !Supply),
+	rename_atoms(!Negative, !Renaming, !Supply),
+	add(relation(!:Head), rule(!:Head, !:Positive, !:Negative), !Rules).
+	
+rule(Clause, !Datalog) :- force_rule(Clause, !Datalog), stratified(!:Datalog).
+
+det_rule(Clause, !Datalog) :-
+	force_rule(Clause, !Datalog), stratified(!:Datalog)
+;
+	unexpected($module, $pred, "Added rule renders datalog unstratisfiable.").
+	
+
+
+
+
+
+
+% sort_body(Literals, Positive, Negative)
+:- pred sort_body(list(literal(T))::in, 
+	list(atom(T))::out, list(atom(T))::out) is det.
+	
+sort_body([], [], []).
+
+sort_body([+Atom | Literals ], [ Atom | Positive ], Negative) :- 
+	sort_body(Literals, Positive, Negative).
+	
+sort_body([-Atom | Literals ], Positive, [ Atom | Negative ]) :- 
+	sort_body(Literals, Positive, Negative).
+	
