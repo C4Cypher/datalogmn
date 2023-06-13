@@ -433,4 +433,13 @@ primitive_rule(Relation, Primitive,
 	datalog(!.Rules, Supply), datalog(!:Rules, Supply)) :-
 	add(Relation, primitive(Primitive), !Rules).
 
+% Asserted facts in a datalog database will have no impact on the 
+% stratifiability of said database because they have no body, rendering
+% stratification checking unneccecary.
+fact(Atom, !Datalog) :- force_rule(Atom :- [], !Datalog).
+
+
+% Queries
+
+
 	
