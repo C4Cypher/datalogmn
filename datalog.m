@@ -351,16 +351,16 @@ stratify(Rules, Relation, Strat) :-
 		member(positive_body(Rule), Atom),
 		BodyRelation = relation(Atom),
 		Strat = Relation >= BodyRelation
+	;	% A > B if A calls B in a negative context
+		member(negative_body(Rule), Atom),
+		BodyRelation = relation(Atom),
+		Strat = Relation > BodyRelation
 	;	% A >= C :- A >= B, B >= C.
 		member(Rules, RelationA, _),
 		stratify(Rules, Relation, Relation >= RelationA)
 		member(Rules, RelationB, _),
 		stratify(Rules, RelationA, RelationA >= RelationB),
 		Strat = Relation >= RelationB
-	;	% A > B if A calls B in a negative context
-		member(negative_body(Rule), Atom),
-		BodyRelation = relation(Atom),
-		Strat = Relation > BodyRelation
 	;	% A > C :- A > B, ( B > C ; B >= C ).
 		member(Rules, RelationA, _),
 		stratify(Rules, Relation, Relation > RelationA)
