@@ -320,65 +320,62 @@ rename_atoms([ !.Atom | !.List ], [ !:Atom | !:List ], !Map, !Supply) :-
 :- pred stratify(rules::in, stratification::out) is nondet.
 :- pragma minimal_model(stratify/2).
 
-stratify(Rules, Stratification) :-
-	member(Rules, Relation, Rule), (
-		Stratification = base(Relation), 
-		not stratify(Rules, Rule, relation(Rule) > _),
-		member(Rules, OtherRelation, _),
-		stratify(Rules, Rule, Relation >= OtherRelation),
-		not stratify(Rules, OtherRelation, base(OtherRelation))
-	;
-		member(Rules OtherRelation, _),
-		stratify(Rules, Rule, Stratification), (
-			Stratification = Relation >= OtherRelation,
-			not stratify(Rules, OtherRelation, OtherRelation > Relation)
-		;
-			Stratification = Relation > OtherRelation,
-			not stratify(Rules, OtherRelation, OtherRelation >= Relation)
-		)
-	).
+stratify(Rules, Stratification) :- 
+	member(Rules, Relation, _), 
+	stratify(Rules, Relation, Stratification).
 	
-	
-		
-	
-:- pred stratify(rules::in, rule::in, stratification::out) is nondet.
+:- pred stratify(rules::in, relation::in, stratification::out) is nondet.
 :- pragma minimal_model(stratify/3).
 
-stratify(Rules, Rule, Stratification) :-
-		Stratifcation = base(relation(Rule)), Rule = primitive(_) 
+
+stratify(Rules, Relation, Strat) :-
+	member(Rules, Relation, Rule), 
+	(
+		Strat = base(Relation),	
+		not stratify(Rules, Relation, Relation > _),
+		not	(
+			member(Rules, OtherRelation, _)
+			stratify(Rules, Relation, Relation >= OtherRelation),
+			not stratify(Rules, OtherRelation, base(OtherRelation)
+		)		
 	;
-		member(Atom, Rule ^ postive_body),
-		member(Rules, relation(Atom), BodyRule),
-		(
-			Stratification = relation(Rule) >= relation(BodyRule),
-			( stratify(Rules, BodyRule, base(BodyRule))
-			; not stratify(Rules, BodyRule, 
-				relation(BodyRule) > relation(Rule))
-			)
-		;
-			Stratification = relation(Rule) >= relation(OtherRule),
-			stratify(Rules, BodyRule, 
-				relation(BodyRule) >= relation(OtherRule)),
-			not stratify(Rules, BodyRule, 
-				relation(OtherRule) > relation (Rule))
-		)
-	;
-		member(Atom, Rule ^ negative_body),
-		member(Rules, relation(Atom), BodyRule),
-		(
-			Stratification = relation(Rule) > relation(BodyRule),
-			( stratify(Rules, BodyRule, base(BodyRule))
-			; not stratify(Rules, BodyRule, 
-				relation(BodyRule) >= relation(Rule))
-			)
-		;
-			Stratification = relation(Rule) > relation(OtherRule),
-			stratify(Rules, BodyRule, 
-				relation(BodyRule) > relation(OtherRule)),
-			not stratify(Rules, BodyRule, 
-				relation(OtherRule) >= relation(Rule))
-		).
 		
-% If I try to explain how this works without 20 min to analyze it,
-% my brain will melt
-			
+		member(positive_body(Rule), Atom),
+		BodyRelation = relation(Atom),
+		Strat = Relation >= BodyRelation
+	;
+		member(Rules, RelationA, _),
+		stratify(Rules, Relation, Relation >= RelationA)
+		member(Rules, RelationB, _),
+		stratify(Rules, RelationA, RelationA >= RelationB),
+		Strat = Relation >= RelationB
+	;
+		member(negative_body(Rule), Atom),
+		BodyRelation = relation(Atom),
+		Strat = Relation > BodyRelation
+	;
+		member(Rules, RelationA, _),
+		stratify(Rules, Relation, Relation > RelationA)
+		member(Rules, RelationB, _),
+		stratify(Rules, RelationA, RelationA > RelationB),
+		Strat = Relation >= RelationB
+	).
+	
+:- pred stratified_rules(rules::in) is semidet.
+
+stratified_rules(Rules) :- not (
+	member(Rules, RelationA, _),
+	member(Rules, RelationB, _),
+	(
+		stratify(Rules, RelationA, RelationA > RelationB),
+		stratify(Rules, RelationB, RelationB > RelationA)
+	;
+		stratify(Rules, RelationA, RelationA >= RelationB),
+		stratify(Rules, RelationB, RelationB > RelationA)
+	;
+		stratify(Rules, RelationA, RelationA > RelationB),
+		stratify(Rules, RelationB, RelationB >= RelationA)
+	)
+).
+
+stratified(datalog(Rules, _)) :- stratified_rules(Rules).
