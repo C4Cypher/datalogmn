@@ -357,8 +357,12 @@ stratify(Rules, Relation, Strat) :-
 		member(Rules, RelationA, _),
 		stratify(Rules, Relation, Relation > RelationA)
 		member(Rules, RelationB, _),
-		stratify(Rules, RelationA, RelationA > RelationB),
-		Strat = Relation >= RelationB
+		(
+			stratify(Rules, RelationA, RelationA > RelationB)
+		;
+			stratify(Rules, RelationA, RelationA >= RelationB)
+		),
+		Strat = Relation > RelationB
 	).
 	
 :- pred stratified_rules(rules::in) is semidet.
@@ -368,13 +372,14 @@ stratified_rules(Rules) :- not (
 	member(Rules, RelationB, _),
 	(
 		stratify(Rules, RelationA, RelationA > RelationB),
-		stratify(Rules, RelationB, RelationB > RelationA)
+		(
+			stratify(Rules, RelationB, RelationB > RelationA)
+		;
+			stratify(Rules, RelationB, RelationB >= RelationA)
+		)
 	;
 		stratify(Rules, RelationA, RelationA >= RelationB),
-		stratify(Rules, RelationB, RelationB > RelationA)
-	;
-		stratify(Rules, RelationA, RelationA > RelationB),
-		stratify(Rules, RelationB, RelationB >= RelationA)
+		stratify(Rules, RelationB, RelationB > RelationA)	
 	)
 ).
 
