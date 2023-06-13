@@ -265,8 +265,8 @@ negation(-Atom,+Atom).
 
 not A = B :- negation(A,B).
 
-negated(+_).
-not_negated(-_).
+negated(-_).
+not_negated(+_).
 
 % Variable renaming for rule insertion into datalog database
 
