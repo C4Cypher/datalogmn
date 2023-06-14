@@ -248,6 +248,9 @@ list_ground_in_bindings([ X | XS ], Sub) :-	is_ground_in_bindings(X, Sub),
 	
 ground_atom_in_bindings({_, List}, Sub) :- list_ground_in_bindings(List, Sub).
 
+apply_substitution_in_atom(Sub, { Symbol, !.Terms }, { Symbol, !:Terms }) :-
+	apply_rec_substitution_in_terms(Sub, !Terms).
+
 atom_vars({_ , Terms}, vars_list(Terms)).
 atom_vars({_ , Terms}) = vars_list(Terms).
 
@@ -446,13 +449,46 @@ fact(Atom, !Datalog) :- force_rule(Atom :- [], !Datalog).
 
 query(datalog(Rules, VarSupply), Query, Result) :-
 	rename_atom(Query, Goal, init, _, VarSupply,_), % Rename variables in query
-	subgoal(Rules, [ +Goal ], init, Substitution),
-	ground_atom_in_bindings(Goal, Substitution),
-	% Apply substitution
+	subgoal(Rules, [ +Goal ], init, Substitution), % Run query
+	ground_atom_in_bindings(Goal, Substitution), %Succeed if results are ground
+	apply_substitution_in_atom(Substitution, Goal, Result). %apply Substitution
 
 % SLDNF Resolution
 :- pred subgoal(rules::in, list(literal(T))::in, substitution(T)::in, 
 	substitution(T)::out) is nondet.
+	
+subgoal(_, [], !Substitution).
+
+subgoal(Rules, [ +Goal | Subgoals ], !Substitution) :-
+	nondet_search(Rules, relation(Goal), Rule),
+	Rule = rule(Head, Positive, Negative),
+	unify_atoms(Goal, Head, !Substitution),
+	append(to_positive(Positive),to_negative(Negative), Body),
+	append( Subgoals, Body, NewGoals),
+	subgoal(Rules, NewGoals, !Substitution)
+;
+	Rule = primitive(P),
+	P(Goal, !Substitution),
+	subgoal(Rules, Subgoals, !Substitution).
+	.
+	
+subgoal(Rules, [ -Goal | Subgoals ], !Substitution) :-
+	not subgoal(Rules, [ Goal | Subgoals ], !:Substitution, _),
+	subgoal(Rules, Subgoals, !Substitution).
+
+% That was a lot simpler than I expected it to be.
+	
+	
+	
+:- func to_positive(list(atom(T))) = list(literal(T)).
+
+to_positive([]) = [].
+to_positive([ X | XS ]) = [ +X | to_positive(XS) ].
+
+:- func to_negative(list(atom(T))) = list(literal(T)).
+
+to_negative([]) = [].
+to_negative([ X | XS ]) = [ -X | to_positive(XS) ].
 	
 
 
