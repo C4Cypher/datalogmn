@@ -198,12 +198,13 @@
 % supposed to do anything but bind vars to ground terms or other vars from
 % the same set.  I might change my mind if I need to implement stricter rules
 % on what a primitive can and cannot do with the input atom.
-:- type datalog(T) ---> datalog(rules :: rules, var_supply :: var_supply(T)).
+:- type datalog(T) ---> 
+	datalog(rules :: rules(T), var_supply :: var_supply(T)).
 
-:- init(datalog(map.init,init_var_supply)).
-:- init = Datalog :- init(Datalog).
+init(datalog(map.init,init_var_supply)).
+init = Datalog :- init(Datalog).
 
-:- empty_datalog(datalog(Rules, Supply)) :-
+empty_datalog(datalog(Rules, Supply)) :-
 	is_empty(Rules), Supply = init_var_supply.
 
 % The symbol type is used to intern string names for relations and atoms
@@ -217,16 +218,16 @@
 
 symbol(String) = { String }.
 
-:- relation(String, Arity, symbol(String)/Arity).
+relation(String, Arity, symbol(String)/Arity).
 
-:- relation(String, Arity) = symbol(String)/Arity.
+relation(String, Arity) = symbol(String)/Arity.
 
 
-atom(String, Terms, {symbol(string), Terms}).
-atom(String, Terms) = {symbol(string), Terms}.
+atom(String, Terms, {symbol(String), Terms}).
+atom(String, Terms) = {symbol(String), Terms}.
 
-unify_atoms({Symbol, ListA}, {Symbol, ListB}, !substitution) :-
-	unify_term_list(ListA, ListB, !substitution).
+unify_atoms({Symbol, ListA}, {Symbol, ListB}, !Substitution) :-
+	unify_term_list(ListA, ListB, !Substitution).
 	
 :- pred term_list_is_ground(list(term(T))::in) is semidet.
 
@@ -235,10 +236,10 @@ term_list_is_ground([ X | XS ]) :- is_ground(X), term_list_is_ground(XS).
 
 ground_atom({_, List}) :- term_list_is_ground(List).
 
-:- pred list_ground_in_bindings(list(term(T)::in, substitution(T)::in)
+:- pred list_ground_in_bindings(list(term(T))::in, substitution(T)::in)
 	is semidet.
 
-list_ground_in_bindings([]).
+list_ground_in_bindings([], _).
 list_ground_in_bindings([ X | XS ], Sub) :-	is_ground_in_bindings(X, Sub), 
 	list_ground_in_bindings(XS, Sub).
 	
@@ -261,7 +262,7 @@ literal(Name, List) = +{symbol(Name), List}.
 negation(+Atom,-Atom).
 negation(-Atom,+Atom).
 
-not A = B :- negation(A,B).
+(not A) = B :- negation(A,B).
 
 negated(-_).
 not_negated(+_).
@@ -274,11 +275,11 @@ not_negated(+_).
 	
 rename_var(!Var, !Map, !Supply) :-
 	NewVar = create_var(!.Supply, NewSupply),
-	search_insert(!.Var, New, FoundVar, !Map),
-	if FoundVar = yes(!:Var) then !:Supply = !.Supply
-	else (
-		!:Var = NewVar,
-		!:Supply = NewSupply
+	search_insert(!.Var, NewVar, FoundVar, !Map),
+	(
+		if FoundVar = yes(!:Var) 
+		then !:Supply = !.Supply
+		else !:Var = NewVar, !:Supply = NewSupply
 	).
 	
 :- pred rename_vars(list(var(T))::in, list(var(T))::out,
@@ -291,8 +292,9 @@ rename_vars([ !.Var | !.List ], [!:Var | !:List ], !Map, !Supply) :-
 	rename_var(!Var, !Map, !Supply),
 	rename_vars(!List, !Map, !Supply).
 	
-:- func rename_var(var(T)::in, renaming(T)::in, renaming(T)::out,
-	var_supply(T)::in, var_supply(T)::out) = var(T)::out is det.
+:- func rename_var(var(T), renaming(T), renaming(T), 
+	var_supply(T), var_supply(T)) = var(T).
+:- mode rename_var(in, in, out, in, out) = out is det.
 	
 rename_var(Old, !Map, !Supply) = New :- rename_var(Old, New, !Map, !Supply).
 
@@ -301,11 +303,11 @@ rename_var(Old, !Map, !Supply) = New :- rename_var(Old, New, !Map, !Supply).
 	var_supply(T)::in, var_supply(T)::out) is det.
 	
 rename_atom( { Symbol, !.Terms }, { Symbol, !:Terms }, !Map, !Supply) :-
-	!.Vars = vars_list(!.Terms),
-	rename_vars(!Vars, !Map, !Supply),
+	Vars = vars_list(!.Terms),
+	rename_vars(Vars, _, !Map, !Supply),
 	apply_renaming_in_terms(!.Map, !Terms).
 	
-:- pred rename_atoms( list(atom(T))::in, list(atom(T)::out,
+:- pred rename_atoms( list(atom(T))::in, list(atom(T))::out,
 	renaming(T)::in, renaming(T)::out,
 	var_supply(T)::in, var_supply(T)::out) is det.
 	
@@ -330,54 +332,54 @@ rename_atoms([ !.Atom | !.List ], [ !:Atom | !:List ], !Map, !Supply) :-
  
 
 	
-:- pred stratify(rules::in, stratification::out) is nondet.
+:- pred stratify(rules(T)::in, stratification::out) is nondet.
 :- pragma minimal_model(stratify/2).
 
 stratify(Rules, Stratification) :- 
 	member(Rules, Relation, _), 
 	stratify(Rules, Relation, Stratification).
 	
-:- pred stratify(rules::in, relation::in, stratification::out) is nondet.
+:- pred stratify(rules(T)::in, relation::in, stratification::out) is nondet.
 :- pragma minimal_model(stratify/3).
 
 
 stratify(Rules, Relation, Strat) :-
-	member(Rules, Relation, Rule), 
+	nondet_search(Rules, Relation, Rule), 
 	(	% A >= B if A calls B in it's body in a positive context
 		member(positive_body(Rule), Atom),
 		BodyRelation = relation(Atom),
-		Strat = Relation >= BodyRelation
+		Strat = (Relation >= BodyRelation)
 	;	% A > B if A calls B in a negative context
 		member(negative_body(Rule), Atom),
 		BodyRelation = relation(Atom),
-		Strat = Relation > BodyRelation
+		Strat = (Relation > BodyRelation)
 	;	% A >= C :- A >= B, B >= C.
 		member(Rules, RelationA, _),
-		stratify(Rules, Relation, Relation >= RelationA)
+		stratify(Rules, Relation, Relation >= RelationA),
 		member(Rules, RelationB, _),
 		stratify(Rules, RelationA, RelationA >= RelationB),
-		Strat = Relation >= RelationB
+		Strat = (Relation >= RelationB)
 	;	% A > C :- A > B, ( B > C ; B >= C ).
 		member(Rules, RelationA, _),
-		stratify(Rules, Relation, Relation > RelationA)
+		stratify(Rules, Relation, Relation > RelationA),
 		member(Rules, RelationB, _),
 		(
 			stratify(Rules, RelationA, RelationA > RelationB)
 		;
 			stratify(Rules, RelationA, RelationA >= RelationB)
 		),
-		Strat = Relation > RelationB
+		Strat = (Relation > RelationB)
 	;	% base(A) :- not A > _, not ( A >= B, not base(B) ).
 		Strat = base(Relation),	
 		not stratify(Rules, Relation, Relation > _),
 		not	(
-			member(Rules, OtherRelation, _)
+			member(Rules, OtherRelation, _),
 			stratify(Rules, Relation, Relation >= OtherRelation),
-			not stratify(Rules, OtherRelation, base(OtherRelation)
+			not stratify(Rules, OtherRelation, base(OtherRelation))
 		)
 	).
 	
-:- pred stratified_rules(rules::in) is semidet.
+:- pred stratified_rules(rules(T)::in) is semidet.
 
 stratified_rules(Rules) :- not (
 	member(Rules, RelationA, _),
@@ -403,7 +405,7 @@ stratification(datalog(Rules, _), Stratification) :-
 % Rules, I put this part after stratification due to the stratification 
 % checking inherent in rule/3 and det_rule/3
 
-force_rule(!.Head :- Body, 
+force_rule((!.Head :- Body), 
 	datalog(!.Rules, !.Supply), datalog(!:Rules, !:Supply)) :-
 	sort_body(Body, !:Positive, !:Negative),
 	!.Renaming = init, % map of variables to be renamed
