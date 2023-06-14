@@ -14,10 +14,9 @@
 
 :- interface.
 
-:- import module term.
-:- import module list.
-:- import module string.
-:- import module int.
+:- import_module term.
+:- import_module list.
+:- import_module string.
 
 :- type datalog(T). % Type paratemerized to conform to term(T).
 :- type datalog == datalog(generic). 
@@ -50,7 +49,7 @@
 :- mode relation(out, out) = in is det.
 
 % Succeeds if the database has no circular dependencies.
-:- pred stratified(datalog(T):in) is semidet.
+:- pred stratified(datalog(T)::in) is semidet.
 
 
 :- type stratification --->
@@ -66,12 +65,12 @@
 % stratified at a level greater than 0 (in essence not Relation > _)
 % Fails on an empty database
 
-:- pred stratification(datalog(T):in, stratification::out) is nondet.
+:- pred stratification(datalog(T)::in, stratification::out) is nondet.
 
 
 % An atom is a combination of a function symbol and a list of terms.
 % In implementation, the string symbol will be interned
-:- type atom(T) ---> {symbol, list(term(T)}.
+:- type atom(T) ---> { symbol, list(term(T)) }.
 :- type atom == atom(generic).
 
 :- pred atom(string, list(term(T)), atom(T)).
@@ -82,7 +81,7 @@
 :- mode atom(in, in) = out is det.
 :- mode atom(out, out) = in is det.
 
-:- pred unify_atoms(atom(T)::in, atom(T)in, substitution(T)::in, 
+:- pred unify_atoms(atom(T)::in, atom(T)::in, substitution(T)::in, 
 	substitution(T)::out) is semidet.
 	
 % True if there are no variables in atom
@@ -110,7 +109,7 @@
 :- mode literal(in, in, out) is det.
 :- mode literal(out, out, in) is semidet. 
 
-:- func literal(string, list(term(T)) = literal(T).
+:- func literal(string, list(term(T))) = literal(T).
 :- mode literal(in, in) = out is det.
 :- mode literal(out, out) = in is semidet.
 
@@ -119,16 +118,16 @@
 :- mode negation(in, out) is det.
 :- mode negation(out, in) is det.
 
-:- func not literal(T) = literal(T).
-:- mode not in = out is det.
-:- mode not out = in is det.
+:- func (not literal(T)) = literal(T).
+:- mode (not in) = out is det.
+:- mode (not out) = in is det.
 
 :- pred negated(literal(T)::in) is semidet.
 :- pred not_negated(literal(T)::in) is semidet.
 
 
 
-:- type clause(T) ---> atom(T) :- list(literal(T)).
+:- type clause(T) ---> (atom(T) :- list(literal(T))).
 :- type clause == clause(generic).
 
 % Fails if the resulting program cannot be stratified
@@ -144,19 +143,15 @@
 % any subsequent use of rule/3 will fail and det_rule/3 will throw an error.
 :- pred force_rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is det.
 
-:- type primitive == pred(atom(T), substitution(T), substution(T)).
-:- inst primitive == (pred(in, in, out) is nondet).
-:- mode primitive_in == in(primitive).
-:- mode pi == primitive_in.
-:- mode primitive_out == out(primitive).
-:- mode po == primitive_out.
-
 % Add a rule that calls a mercury goal for it's unifications
 % for semidet success that does not bind variables, return empty substitution
 % Don't pass new variables back in result, either bind variables to
 % ground terms or to other variables in the atom.
-:- pred primitive_rule(relation::in, primitive::pi, datalog(T)::in, 
-	datalog(T)::out) is det.
+:- pred primitive_rule(relation, 
+	pred(atom(T), substitution(T), substitution(T)), 
+	datalog(T), datalog(T)).
+	
+:- mode primitive_rule(in, pred(in, in, out) is nondet, in, out) is det.
 	
 % Equivalent to rule(Atom :- [], !Datalog). Using variables instead of ground
 % terms in the Atom is not reccomended unless you're binding the same term in
@@ -178,11 +173,12 @@
 
 :- implementation.
 
-:- import module map.
-:- import module require.
-:- import module maybe.
+:- import_module map.
+:- import_module multi_map.
+:- import_module require.
+:- import_module maybe.
 
-:- type rule(T) -->
+:- type rule(T) --->
 	rule(
 		head :: atom(T),
 		positive_body :: list(atom(T)),
@@ -202,7 +198,7 @@
 % supposed to do anything but bind vars to ground terms or other vars from
 % the same set.  I might change my mind if I need to implement stricter rules
 % on what a primitive can and cannot do with the input atom.
-:- type datalog(T) ----> datalog(rules :: rules, var_supply :: var_supply(T)).
+:- type datalog(T) ---> datalog(rules :: rules, var_supply :: var_supply(T)).
 
 :- init(datalog(map.init,init_var_supply)).
 :- init = Datalog :- init(Datalog).
@@ -229,8 +225,8 @@ symbol(String) = { String }.
 atom(String, Terms, {symbol(string), Terms}).
 atom(String, Terms) = {symbol(string), Terms}.
 
-unify_atoms({Symbol, ListA}, {Symbol, ListB}, !Substitution) :-
-	unify_term_list(ListA, ListB, !Substitution).
+unify_atoms({Symbol, ListA}, {Symbol, ListB}, !substitution) :-
+	unify_term_list(ListA, ListB, !substitution).
 	
 :- pred term_list_is_ground(list(term(T))::in) is semidet.
 
@@ -449,32 +445,32 @@ fact(Atom, !Datalog) :- force_rule(Atom :- [], !Datalog).
 
 query(datalog(Rules, VarSupply), Query, Result) :-
 	rename_atom(Query, Goal, init, _, VarSupply,_), % Rename variables in query
-	subgoal(Rules, [ +Goal ], init, Substitution), % Run query
-	ground_atom_in_bindings(Goal, Substitution), %Succeed if results are ground
-	apply_substitution_in_atom(Substitution, Goal, Result). %apply Substitution
+	subgoal(Rules, [ +Goal ], init, substitution), % Run query
+	ground_atom_in_bindings(Goal, substitution), %Succeed if results are ground
+	apply_substitution_in_atom(substitution, Goal, Result). %apply substitution
 
 % SLDNF Resolution
 :- pred subgoal(rules::in, list(literal(T))::in, substitution(T)::in, 
 	substitution(T)::out) is nondet.
 	
-subgoal(_, [], !Substitution).
+subgoal(_, [], !substitution).
 
-subgoal(Rules, [ +Goal | Subgoals ], !Substitution) :-
+subgoal(Rules, [ +Goal | Subgoals ], !substitution) :-
 	nondet_search(Rules, relation(Goal), Rule),
 	Rule = rule(Head, Positive, Negative),
-	unify_atoms(Goal, Head, !Substitution),
+	unify_atoms(Goal, Head, !substitution),
 	append(to_positive(Positive),to_negative(Negative), Body),
 	append( Subgoals, Body, NewGoals),
-	subgoal(Rules, NewGoals, !Substitution)
+	subgoal(Rules, NewGoals, !substitution)
 ;
 	Rule = primitive(P),
-	P(Goal, !Substitution),
-	subgoal(Rules, Subgoals, !Substitution).
+	P(Goal, !substitution),
+	subgoal(Rules, Subgoals, !substitution).
 	.
 	
-subgoal(Rules, [ -Goal | Subgoals ], !Substitution) :-
-	not subgoal(Rules, [ Goal | Subgoals ], !:Substitution, _),
-	subgoal(Rules, Subgoals, !Substitution).
+subgoal(Rules, [ -Goal | Subgoals ], !substitution) :-
+	not subgoal(Rules, [ Goal | Subgoals ], !:substitution, _),
+	subgoal(Rules, Subgoals, !substitution).
 
 % That was a lot simpler than I expected it to be.
 	
