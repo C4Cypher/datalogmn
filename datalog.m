@@ -185,6 +185,8 @@
 :- import_module multi_map.
 :- import_module require.
 :- import_module maybe.
+:- import_module solutions.
+:- import_module set.
 
 :- type rule(T) --->
 	rule(
@@ -385,14 +387,16 @@ stratify(Rules, Relation, Strat) :-
 			stratify(Rules, RelationA, RelationA >= RelationB)
 		),
 		Strat = (Relation > RelationB)
-	/* ;	% base(A) :- not A > _, not ( A >= B, not base(B) ).
-		Strat = base(Relation),	 %
+	/*;	% base(A) :- not A > _, not ( A >= B, not base(B) ).
+		Strat = base(Relation),	 
 		not stratify(Rules, Relation, Relation > _),
-		multi_map.member(Rules, OtherRelation, _), (
-			not stratify(Rules, Relation >= _)
-		;
-			stratify(Rules, Relation, Relation >= OtherRelation), 
-			not stratify(Rules, OtherRelation, base(OtherRelation))
+		multi_map.member(Rules, OtherRelation, _), 
+		not (
+			stratify(Rules, Relation >= OtherRelation), 
+			OtherStratify = (pred(OtherStrat::out) is nondet :-
+				stratify(Rules, OtherRelation, OtherStrat) ),
+			StratSet = solutions_set(OtherStratify),
+			not set.member(base(OtherRelation), StratSet)
 		) */
 	).
 	
