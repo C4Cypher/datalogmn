@@ -34,17 +34,21 @@
 % When constructing symbols, the string values are interned
 :- type symbol.
 
+:- pred symbol(string, symbol).
+:- mode symbol(in, out) is det.
+:- mode symbol(out,  in) is det.
+
 :- func symbol(string) = symbol.
 :- mode symbol(in) = out is det.
 :- mode symbol(out) = in is det.
 
-:- type relation ---> symbol/uint.
+:- type relation ---> symbol/int.
 
-:- pred relation(string, uint, relation).
+:- pred relation(string, int, relation).
 :- mode relation(in, in, out) is det.
 :- mode relation(out, out, in) is det.
 
-:- func relation(string, uint) = relation.
+:- func relation(string, int) = relation.
 :- mode relation(in, in) = out is det.
 :- mode relation(out, out) = in is det.
 
@@ -70,7 +74,7 @@
 
 % An atom is a combination of a function symbol and a list of terms.
 % In implementation, the string symbol will be interned
-:- type atom(T) ---> { symbol, list(term(T)) }.
+:- type atom(T) == { symbol, list(term(T)) }.
 :- type atom == atom(generic).
 
 :- pred atom(string, list(term(T)), atom(T)).
@@ -96,7 +100,7 @@
 
 :- func relation(atom(T)) = relation.
 :- func name(atom(T)) = string.
-:- func arity(atom(T)) = uint.
+:- func arity(atom(T)) = int.
 :- func terms(atom(T)) = list(term(T)).
 	
 % A literal is an atom or it's negation.
@@ -127,8 +131,12 @@
 
 
 
-:- type clause(T) ---> (atom(T) :- list(literal(T))).
+:- type clause(T) ---> clause( head :: atom(T), body :: list(literal(T))).
 :- type clause == clause(generic).
+
+:- func (atom(T) :- list(literal(T))) = clause(T).
+:- mode (in :- in) = out is det.
+:- mode (out :- out) = in is det.
 
 % Fails if the resulting program cannot be stratified
 :- pred rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is semidet. 
@@ -205,18 +213,23 @@ init(datalog(map.init,init_var_supply)).
 init = Datalog :- init(Datalog).
 
 empty_datalog(datalog(Rules, Supply)) :-
-	is_empty(Rules), Supply = init_var_supply.
+	multi_map.is_empty(Rules), Supply = init_var_supply.
 
 % The symbol type is used to intern string names for relations and atoms
 % I want symbol lookup to be by refrence instead of by value
-:- type symbol ---> { string }.
+:- type symbol == { string }.
 
 
 % table the creation of symbols so that the same string always returns a
 % refrence to the same symbol object, instead of constructing a new one
+:- pragma memo(symbol(in, out)).
+
+symbol(String, { String }).
+
+
 :- pragma memo(symbol(in) = out).
 
-symbol(String) = { String }.
+symbol(String) = Symbol :- symbol(String, Symbol).
 
 relation(String, Arity, symbol(String)/Arity).
 
@@ -251,8 +264,8 @@ apply_substitution_in_atom(Sub, { Symbol, !.Terms }, { Symbol, !:Terms }) :-
 atom_vars({_ , Terms}, vars_list(Terms)).
 atom_vars({_ , Terms}) = vars_list(Terms).
 
-relation({Symbol, List}) = {Symbol, length(List)}.
-name({ symbol_string(Name), _ }) = Name.
+relation({Symbol, List}) = Symbol/length(List).
+name({ symbol(Name), _ }) = Name.
 arity({_, List}) = length(List).
 terms({_, List}) = List.
 
@@ -267,6 +280,9 @@ negation(-Atom,+Atom).
 negated(-_).
 not_negated(+_).
 
+% More syntax friendly constructor for clause
+(Head :- Body) = clause(Head, Body).
+
 % Variable renaming for rule insertion into datalog database
 
 :- pred rename_var(var(T)::in, var(T)::out,
@@ -274,7 +290,7 @@ not_negated(+_).
 	var_supply(T)::in, var_supply(T)::out) is det.
 	
 rename_var(!Var, !Map, !Supply) :-
-	NewVar = create_var(!.Supply, NewSupply),
+	create_var(NewVar, !.Supply, NewSupply),
 	search_insert(!.Var, NewVar, FoundVar, !Map),
 	(
 		if FoundVar = yes(!:Var) 
@@ -336,7 +352,7 @@ rename_atoms([ !.Atom | !.List ], [ !:Atom | !:List ], !Map, !Supply) :-
 :- pragma minimal_model(stratify/2).
 
 stratify(Rules, Stratification) :- 
-	member(Rules, Relation, _), 
+	multi_map.member(Rules, Relation, _), 
 	stratify(Rules, Relation, Stratification).
 	
 :- pred stratify(rules(T)::in, relation::in, stratification::out) is nondet.
@@ -346,23 +362,23 @@ stratify(Rules, Stratification) :-
 stratify(Rules, Relation, Strat) :-
 	nondet_search(Rules, Relation, Rule), 
 	(	% A >= B if A calls B in it's body in a positive context
-		member(positive_body(Rule), Atom),
+		list.member(Atom, positive_body(Rule)),
 		BodyRelation = relation(Atom),
 		Strat = (Relation >= BodyRelation)
 	;	% A > B if A calls B in a negative context
-		member(negative_body(Rule), Atom),
+		list.member(Atom, negative_body(Rule)),
 		BodyRelation = relation(Atom),
 		Strat = (Relation > BodyRelation)
 	;	% A >= C :- A >= B, B >= C.
-		member(Rules, RelationA, _),
+		multi_map.member(Rules, RelationA, _),
 		stratify(Rules, Relation, Relation >= RelationA),
-		member(Rules, RelationB, _),
+		multi_map.member(Rules, RelationB, _),
 		stratify(Rules, RelationA, RelationA >= RelationB),
 		Strat = (Relation >= RelationB)
 	;	% A > C :- A > B, ( B > C ; B >= C ).
-		member(Rules, RelationA, _),
+		multi_map.member(Rules, RelationA, _),
 		stratify(Rules, Relation, Relation > RelationA),
-		member(Rules, RelationB, _),
+		multi_map.member(Rules, RelationB, _),
 		(
 			stratify(Rules, RelationA, RelationA > RelationB)
 		;
@@ -373,7 +389,7 @@ stratify(Rules, Relation, Strat) :-
 		Strat = base(Relation),	
 		not stratify(Rules, Relation, Relation > _),
 		not	(
-			member(Rules, OtherRelation, _),
+			multi_map.member(Rules, OtherRelation, _),
 			stratify(Rules, Relation, Relation >= OtherRelation),
 			not stratify(Rules, OtherRelation, base(OtherRelation))
 		)
@@ -382,8 +398,8 @@ stratify(Rules, Relation, Strat) :-
 :- pred stratified_rules(rules(T)::in) is semidet.
 
 stratified_rules(Rules) :- not (
-	member(Rules, RelationA, _),
-	member(Rules, RelationB, _),
+	multi_map.member(Rules, RelationA, _),
+	multi_map.member(Rules, RelationB, _),
 	(
 		stratify(Rules, RelationA, RelationA > RelationB),
 		(
@@ -405,14 +421,13 @@ stratification(datalog(Rules, _), Stratification) :-
 % Rules, I put this part after stratification due to the stratification 
 % checking inherent in rule/3 and det_rule/3
 
-force_rule((!.Head :- Body), 
-	datalog(!.Rules, !.Supply), datalog(!:Rules, !:Supply)) :-
-	sort_body(Body, !:Positive, !:Negative),
-	!.Renaming = init, % map of variables to be renamed
-	rename_atom(!Head, !Renaming, !Supply),
-	rename_atoms(!Positive, !Renaming, !Supply),
-	rename_atoms(!Negative, !Renaming, !Supply),
-	add(relation(!:Head), rule(!:Head, !:Positive, !:Negative), !Rules).
+force_rule(clause(Head, Body), datalog(!.Rules, !.Supply), 
+	datalog(!:Rules, !:Supply)) :-
+	sort_body(Body, Positive, Negative),
+	rename_atom(Head, RenHead, init, Ren, !Supply),
+	rename_atoms(Positive, RenamedPos, Ren, RenNext, !Supply),
+	rename_atoms(Negative, RenamedNeg, RenNext, _, !Supply),
+	add(relation(RenHead), rule(RenHead, RenamedPos, RenamedNeg), !Rules).
 	
 % sort_body(Literals, Positive, Negative)
 :- pred sort_body(list(literal(T))::in, 
@@ -426,10 +441,10 @@ sort_body([+Atom | Literals ], [ Atom | Positive ], Negative) :-
 sort_body([-Atom | Literals ], Positive, [ Atom | Negative ]) :- 
 	sort_body(Literals, Positive, Negative).
 	
-rule(Clause, !Datalog) :- force_rule(Clause, !Datalog), stratified(!:Datalog).
+rule(Clause, !Datalog) :- force_rule(Clause, !Datalog), stratified(!.Datalog).
 
-det_rule(Clause, !Datalog) :-
-	force_rule(Clause, !Datalog), stratified(!:Datalog)
+det_rule(Clause, Datalog0, Datalog) :-
+	force_rule(Clause, Datalog0, Datalog), stratified(Datalog)
 ;
 	unexpected($module, $pred, "Added rule renders datalog unstratisfiable.").
 	
@@ -440,39 +455,39 @@ primitive_rule(Relation, Primitive,
 % Asserted facts in a datalog database will have no impact on the 
 % stratifiability of said database because they have no body, rendering
 % stratification checking unneccecary.
-fact(Atom, !Datalog) :- force_rule(Atom :- [], !Datalog).
+fact(Atom, !Datalog) :- force_rule(clause(Atom, []), !Datalog).
 
 
 % Queries 
 
 query(datalog(Rules, VarSupply), Query, Result) :-
-	rename_atom(Query, Goal, init, _, VarSupply,_), % Rename variables in query
-	subgoal(Rules, [ +Goal ], init, substitution), % Run query
-	ground_atom_in_bindings(Goal, substitution), %Succeed if results are ground
-	apply_substitution_in_atom(substitution, Goal, Result). %apply substitution
+	rename_atom(Query, Goal, init, _, VarSupply,_), %Rename variables in query
+	subgoal(Rules, [ +Goal ], init, Substitution), % Run query
+	ground_atom_in_bindings(Goal, Substitution), %Succeed if results are ground
+	apply_substitution_in_atom(Substitution, Goal, Result). %apply substitution
 
 % SLDNF Resolution
-:- pred subgoal(rules::in, list(literal(T))::in, substitution(T)::in, 
+:- pred subgoal(rules(T)::in, list(literal(T))::in, substitution(T)::in, 
 	substitution(T)::out) is nondet.
 	
-subgoal(_, [], !substitution).
+subgoal(_, [], !Substitution).
 
-subgoal(Rules, [ +Goal | Subgoals ], !substitution) :-
-	nondet_search(Rules, relation(Goal), Rule),
-	Rule = rule(Head, Positive, Negative),
-	unify_atoms(Goal, Head, !substitution),
-	append(to_positive(Positive),to_negative(Negative), Body),
-	append( Subgoals, Body, NewGoals),
-	subgoal(Rules, NewGoals, !substitution)
-;
-	Rule = primitive(P),
-	P(Goal, !substitution),
-	subgoal(Rules, Subgoals, !substitution).
-	.
+subgoal(Rules, [ +Goal | Subgoals ], !Substitution) :-
+	nondet_search(Rules, relation(Goal), Rule), (
+		Rule = rule(Head, Positive, Negative),
+		unify_atoms(Goal, Head, !Substitution),
+		append(to_positive(Positive),to_negative(Negative), Body),
+		append( Subgoals, Body, NewGoals),
+		subgoal(Rules, NewGoals, !Substitution)
+	;
+		Rule = primitive(P),
+		P(Goal, !Substitution),
+		subgoal(Rules, Subgoals, !Substitution)
+	).
 	
-subgoal(Rules, [ -Goal | Subgoals ], !substitution) :-
-	not subgoal(Rules, [ Goal | Subgoals ], !:substitution, _),
-	subgoal(Rules, Subgoals, !substitution).
+subgoal(Rules, [ -Goal | Subgoals ], !Substitution) :-
+	not subgoal(Rules, [ Goal | Subgoals ], !.Substitution, _),
+	subgoal(Rules, Subgoals, !Substitution).
 
 % That was a lot simpler than I expected it to be.
 	
