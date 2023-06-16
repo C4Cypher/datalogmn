@@ -6,8 +6,10 @@ Mercury.modules
 *.dll
 *.exe
 *.a
+*.o
 *.so
 *.dylib
 *.beams
 *.d
 *.c_date
+*.c

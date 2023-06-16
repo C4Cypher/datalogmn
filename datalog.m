@@ -385,14 +385,15 @@ stratify(Rules, Relation, Strat) :-
 			stratify(Rules, RelationA, RelationA >= RelationB)
 		),
 		Strat = (Relation > RelationB)
-	;	% base(A) :- not A > _, not ( A >= B, not base(B) ).
-		Strat = base(Relation),	
+	/* ;	% base(A) :- not A > _, not ( A >= B, not base(B) ).
+		Strat = base(Relation),	 %
 		not stratify(Rules, Relation, Relation > _),
-		not	(
-			multi_map.member(Rules, OtherRelation, _),
-			stratify(Rules, Relation, Relation >= OtherRelation),
+		multi_map.member(Rules, OtherRelation, _), (
+			not stratify(Rules, Relation >= _)
+		;
+			stratify(Rules, Relation, Relation >= OtherRelation), 
 			not stratify(Rules, OtherRelation, base(OtherRelation))
-		)
+		) */
 	).
 	
 :- pred stratified_rules(rules(T)::in) is semidet.
@@ -443,10 +444,12 @@ sort_body([-Atom | Literals ], Positive, [ Atom | Negative ]) :-
 	
 rule(Clause, !Datalog) :- force_rule(Clause, !Datalog), stratified(!.Datalog).
 
-det_rule(Clause, Datalog0, Datalog) :-
-	force_rule(Clause, Datalog0, Datalog), stratified(Datalog)
-;
-	unexpected($module, $pred, "Added rule renders datalog unstratisfiable.").
+det_rule(Clause, Datalog0, Datalog) :- 
+	force_rule(Clause, Datalog0, Datalog1), (
+		if stratified(Datalog1) then Datalog1 = Datalog
+		else unexpected($module, $pred, 
+			"Added rule renders datalog unstratisfiable.")
+	).
 	
 primitive_rule(Relation, Primitive, 
 	datalog(!.Rules, Supply), datalog(!:Rules, Supply)) :-
@@ -486,7 +489,7 @@ subgoal(Rules, [ +Goal | Subgoals ], !Substitution) :-
 	).
 	
 subgoal(Rules, [ -Goal | Subgoals ], !Substitution) :-
-	not subgoal(Rules, [ Goal | Subgoals ], !.Substitution, _),
+	not subgoal(Rules, [ +Goal | Subgoals ], !.Substitution, _),
 	subgoal(Rules, Subgoals, !Substitution).
 
 % That was a lot simpler than I expected it to be.
