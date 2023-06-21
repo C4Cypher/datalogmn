@@ -134,9 +134,9 @@
 :- type clause(T) ---> clause( head :: atom(T), body :: list(literal(T))).
 :- type clause == clause(generic).
 
-:- func (atom(T) :- list(literal(T))) = clause(T).
-:- mode (in :- in) = out is det.
-:- mode (out :- out) = in is det.
+:- func (atom(T) <= list(literal(T))) = clause(T).
+:- mode (in <= in) = out is det.
+:- mode (out <= out) = in is det.
 
 % Fails if the resulting program cannot be stratified
 :- pred rule(clause(T)::in, datalog(T)::in, datalog(T)::out) is semidet. 
@@ -283,7 +283,7 @@ negated(-_).
 not_negated(+_).
 
 % More syntax friendly constructor for clause
-(Head :- Body) = clause(Head, Body).
+(Head <= Body) = clause(Head, Body).
 
 % Variable renaming for rule insertion into datalog database
 
