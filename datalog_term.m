@@ -17,6 +17,7 @@
 :- import_module term.
 :- import_module list.
 :- import_module map.
+:- import_module set.
 
 :- type binding(T) == map(var(T), T).
 
@@ -38,7 +39,7 @@
 :- instance datalog_term(term(T)).
 
 :- func vars_of(T) = list(var(T)) <= datalog_term(T).
-:- func to_var(T) = var is semidet <= datalog_term(T).
+:- func to_var(T) = var(T) is semidet <= datalog_term(T).
 :- func to_term(var(T)) = T <= datalog_term(T).
 :- func unify(T, T, binding(T)) = binding(T) <= datalog_term(T).
 :- func replace(var(T), T, T) = T <= datalog_term(T).
@@ -62,7 +63,39 @@
 
 :- pred bind_list(binding(T)::in, list(T)::in, T::out) is det 
 	<= datalog_term(T).
+
+
+:- implementation.
+
+vars_of(T) = List :- vars_of(T, List).
+to_var(T) = Var :- to_var(T, Var).
+to_term(Var) = Term :- to_term(Var, Term).
+unify(A, B, !.Binding) = !:Binding :- unify(A, B, !Binding).
+replace(Var, Replacement, !.Term) = !:Term :- replace(Var, Replacement, !Term).
+
+is_ground(Term) :- vars_of(Term, []).
+
+:- pred insert_merge(list(T)::in, list(T)::in, list(T)::out) is det.
+
+insert_merge([], List, List).
+
+insert_merge([X|Xs], !List) :- 
+	if member(X, !.List) 
+	then insert_merge(Xs, !List)
+	else insert_merge(Xs, [ X | !.List ], !:List).
 	
+vars_of_list([], []).
+
+vars_of_list([Term | Terms], AllVars) :- 
+	vars_of_list(Terms, Vars),
+	insert_merge(vars_of(Term), Vars, AllVars).
+
+unify_list([], [], !Binding).
+
+unify_list([X | Xs], [Y | Ys], !Binding) :- 
+		unify(X, Y, !Binding),
+		unify_list(Xs, Ys, !Binding).
+
 
 	
 	
