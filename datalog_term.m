@@ -22,15 +22,20 @@
 :- type binding(T) == map(var(T), T).
 
 :- typeclass datalog_term(T) where [
+
 	% return a list of variables in a term
 	% return empty list with no vars if term is ground
 	pred vars_of(T::in, list(var(T))::out) is det,
+	
 	% if root term is a var, return it
 	pred to_var(T::in, var(T)::out) is semidet, 
+	
 	% convert a var into a term
 	pred to_term(var(T)::in, T::out) is det,
+	
 	% find variable bindings that unify terms and add them to the accumulator
 	pred unify(T::in, T::in, binding(T)::in, binding(T)::out) is det,
+	
 	% Replace var V with term Replacement in term T
 	% replace(V, Replacement, !T)
 	pred replace(var(T)::in, T::in, T::in, T::out) is det
