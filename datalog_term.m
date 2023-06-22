@@ -43,6 +43,9 @@
 :- func unify(T, T, binding(T)) = binding(T) <= datalog_term(T).
 :- func replace(var(T), T, T) = T <= datalog_term(T).
 
+% is_ground(Term) :- vars_of(Term, []).
+:- pred is_ground(T::in) is semidet <= datalog_term(T).
+
 % get the variables in a list of terms and merge them
 :- pred vars_of_list(list(T)::in, list(var(T))::out) is det <= datalog_term(T).
 :- func vars_of_list(list(T)) = list(var(T))  <= datalog_term(T).
