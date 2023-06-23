@@ -101,6 +101,25 @@ unify_list([X | Xs], [Y | Ys], !Binding) :-
 		unify(X, Y, !Binding),
 		unify_list(Xs, Ys, !Binding).
 
+:- pred rename_term_vars(renaming(T)::in, list(var(T))::in, T::in, T::out) 
+	is det. 
+	
+rename_term_vars(_, [], !T).
+
+rename_term_vars(Map, [ Var | Vars ], !T) :-
+	if contains(Map, Var) 
+	then (
+		replace(Var, to_term(lookup(Map, Var)), !T),
+		rename_term_vars(Map, Vars, !T) 
+	) else rename_term_vars(Map, Vars, !T).
+	
+
+rename(Map, !Term) :- 
+	vars_of(!.Term, Vars),
+	rename_term_vars(Map, Vars, !Term).
+
+
+
 
 	
 	
