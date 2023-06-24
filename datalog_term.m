@@ -75,11 +75,17 @@
 :- pred rename(rename_map(V)::in, T::in, T::out) is det 
 	<= datalog_term(T, V, S).
 
-% Recursively replace variables with terms from a binding substitution
+% Replace variables with terms from a binding substitution
 :- pred bind(binding(T, V)::in, T::in, T::out) is det <= datalog_term(T, V, S).
 
-:- pred bind_list(binding(T, V)::in, list(T)::in, list(T)::out) is det 
+:- func bind(binding(T, V), T) = T <= datalog_term(T, V, S).
+
+% Recursively bind variables until the resulting terms are ground, fail if
+% the resulting term is not ground.
+:- pred to_ground(binding(T, V)::in, T::in, T::out) is semidet
 	<= datalog_term(T, V, S).
+	
+:- func to_ground(binding(T, V), T) = T is semidet <= datalog_term(T, V, S).
 
 
 :- implementation.
@@ -133,48 +139,15 @@ rename(Map, !Term) :-
 	vars_of(!.Term, Vars),
 	rename_term_vars(Map, Vars, !Term).
 	
-:- pred bind_var(binding(T, V)::in, V::in, T::in, T::out) is det 
-	<= datalog_term(T, V, S).
 
-bind_var(Binding, Var, !Term) :-
-	if search(Binding, Var, NewTerm)
+
+
+bind(_, [], []).
+bind(Binding, !.Term, !:Term) :- 
+	if to_var(!.Term, Var)
 	then (
-		if to_var(NewTerm, NewVar)
-		then bind_var(Binding, NewVar, !Term)
-		else replace(Var, NewTerm, !Term)
-	) else !:Term = !.Term.
+		if search(
 		
-:- pred bind_vars(binding(T, V)::in, list(V)::in,  T::in, T::out) is det 
-	<= datalog_term(T, V, S).
-
-bind_vars(_, [], !T).
-
-bind_vars(Binding, [Var | Vars], !Term) :- 
-	bind_var(Binding, Var, !Term),
-	bind_vars(Binding, Vars, !Term).
-	
-	
-bind(Binding, !Term) :- bind_vars(Binding, vars_of(!.Term), !Term).
-
-:- pred bind_list_vars(binding(T, V)::in, list(V)::in, list(T)::in, 
-	list(T)::out) is det <= datalog_term(T, V, S).
-	
-bind_list_vars(_, [], !Terms).
-
-bind_list_vars(Binding, Vars, [ !.Term | !.Terms ], [ !:Term | !:Terms ]) :-
-	bind_vars(Binding, Vars, !Term),
-	bind_list_vars(Binding, Vars, !Terms).
-
-bind_list(_, [], []).
-
-bind_list(Binding, !Terms) :-
-	vars_of_list(!.Terms, Vars),
-	bind_list_vars(Binding, Vars, !Terms).
-	
-	
-	
-	
-	
 
 
 
