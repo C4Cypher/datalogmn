@@ -62,11 +62,6 @@
 % is_ground(Term) :- vars_of(Term, []).
 :- pred is_ground(T::in) is semidet <= datalog_term(T, V, S).
 
-% get the variables in a list of terms and merge them
-:- pred vars_of_list(list(T)::in, list(V)::out) is det 
-	<= datalog_term(T, V, S).
-:- func vars_of_list(list(T)) = list(V)  <= datalog_term(T, V, S).
-
 % Unify lists sequentially, fail if the lists are not equal length
 :- pred unify_list(list(T)::in, list(T)::in, binding(T, V)::in, 
 	binding(T, V)::out) is semidet <= datalog_term(T, V, S).
@@ -76,7 +71,7 @@
 	<= datalog_term(T, V, S).
 
 % Replace variables with terms from a binding substitution
-:- pred bind(binding(T, V)::in, T::in, T::out) is det <= datalog_term(T, V, S).
+:- pred bind(binding(T, V)::in, T::in, T::out) is det <= datalog_term(T, V, _).
 
 :- func bind(binding(T, V), T) = T <= datalog_term(T, V, S).
 
@@ -85,7 +80,7 @@
 :- pred to_ground(binding(T, V)::in, T::in, T::out) is semidet
 	<= datalog_term(T, V, S).
 	
-:- func to_ground(binding(T, V), T) = T is semidet <= datalog_term(T, V, S).
+:- func to_ground(binding(T, V), T) = T is semidet <= datalog_term(T, V, _).
 
 
 :- implementation.
@@ -110,11 +105,6 @@ insert_merge([X|Xs], !List) :-
 	then insert_merge(Xs, !List)
 	else insert_merge(Xs, [ X | !.List ], !:List).
 	
-vars_of_list([], []).
-
-vars_of_list([Term | Terms], AllVars) :- 
-	vars_of_list(Terms, Vars),
-	insert_merge(vars_of(Term), Vars, AllVars).
 
 unify_list([], [], !Binding).
 
@@ -140,7 +130,7 @@ rename(Map, !Term) :-
 	rename_term_vars(Map, Vars, !Term).
 	
 
-
+:- pred bind_var(binding(T, V), T::in, T::out) is det <= datalog_term(T, V, _).
 
 bind(_, [], []).
 bind(Binding, !.Term, !:Term) :- 
