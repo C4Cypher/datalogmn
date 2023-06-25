@@ -30,8 +30,9 @@
 	% create a new, unique variable
 	pred new_var(V::out, S::in, S::out) is det.
 
-	% return a list of variables in a term
-	% return empty list with no vars if term is ground
+	% return a list of variables in term
+	% return a singleton if the term is a varaible
+	% return empty list if variable is ground
 	pred vars_of(T::in, list(V)::out) is det,
 	
 	% if root term is a var, return it
@@ -51,13 +52,13 @@
 
 :- instance datalog_term(term(T), var(T), var_supply(T)).
 
-:- func new_var_set = S::uo is det <= datalog_term(T, V, S).
-:- func new_var(S::in, S::out) = V::out is det <= datalog_term(T, V, S).
-:- func vars_of(T) = list(V) <= datalog_term(T, V, S).
-:- func to_var(T) = V is semidet <= datalog_term(T, V, S).
-:- func to_term(V) = T <= datalog_term(T, V, S).
-:- func unify(T, T, binding(T, V)) = binding(T, V) <= datalog_term(T, V, S).
-:- func replace(V, T, T) = T <= datalog_term(T, V, S).
+:- func new_var_set = S::uo is det <= datalog_term(T, V, _).
+:- func new_var(S::in, S::out) = V::out is det <= datalog_term(_, V, S).
+:- func vars_of(T) = list(V) <= datalog_term(T, V, _).
+:- func to_var(T) = V is semidet <= datalog_term(T, V, _).
+:- func to_term(V) = T <= datalog_term(T, V, _).
+:- func unify(T, T, binding(T, V)) = binding(T, V) <= datalog_term(T, V, _).
+:- func replace(V, T, T) = T <= datalog_term(T, V, _).
 
 % is_ground(Term) :- vars_of(Term, []).
 :- pred is_ground(T::in) is semidet <= datalog_term(T, V, S).
@@ -70,17 +71,19 @@
 :- pred rename(rename_map(V)::in, T::in, T::out) is det 
 	<= datalog_term(T, V, S).
 
-% Replace variables with terms from a binding substitution
-:- pred bind(binding(T, V)::in, T::in, T::out) is det <= datalog_term(T, V, _).
-
-:- func bind(binding(T, V), T) = T <= datalog_term(T, V, S).
-
 % Recursively bind variables until the resulting terms are ground, fail if
 % the resulting term is not ground.
-:- pred to_ground(binding(T, V)::in, T::in, T::out) is semidet
-	<= datalog_term(T, V, S).
+:- pred bind(binding(T, V)::in, T::in, T::out) is det <= datalog_term(T, V, _).
+
+:- func bind(binding(T, V), T) = T <= datalog_term(T, V, _).
+
+:- pred bind_list(binding(T, V)::in, list(T)::in, list(T)::out) is semidet
+	<= datalog_term(T, V, _).
 	
-:- func to_ground(binding(T, V), T) = T is semidet <= datalog_term(T, V, _).
+:- func bind_list(binding(T, V), list(T) = list(T) is semidet 
+	<= datalog_term(T, V, _).
+
+
 
 
 :- implementation.
@@ -124,20 +127,60 @@ rename_term_vars(Map, [ Var | Vars ], !T) :-
 		rename_term_vars(Map, Vars, !T) 
 	) else rename_term_vars(Map, Vars, !T).
 	
+:- pred rename_subterms(rename_map::in, list(T)::in, list(T)::out) is det.
+
+rename_subterms(_, [], []).
+
+rename_subterms(Map, [ !.Term | !.Terms ], [!:Term | !:Terms]) :-
+	rename(Map, !Term),
+	rename_subterms(Map, !Terms).
+
+:- pred rename(rename_map(V)::in, list(V)::in, T::in, T::out) is det 
+	<= datalog_term(T, V, _).
+
+rename(_, [], !Term).
+
+rename(Map, [ Var | Vars ], !Term) :-
+	if search(Map, Var, NewVar) 
+	then (
+		replace(Var, to_term(NewVar), !Term),
+		rename(Map, Vars, !Term)
+	) else rename(Map, Vars, !Term).
+	
 
 rename(Map, !Term) :- 
 	vars_of(!.Term, Vars),
-	rename_term_vars(Map, Vars, !Term).
+	rename(Map, Vars, !Term).
+
+:- pred bind(binding(T, V), list(V)::in, T::in, T::out) is semidet 
+	<= datalog_term(T, V, _).
 	
+bind(_, [], !Term).
 
-:- pred bind_var(binding(T, V), T::in, T::out) is det <= datalog_term(T, V, _).
+bind(Binding, [ Var | Vars ], !Term) :-
+	if search(Binding, Var, NewTerm)
+	then ( 	
+		(	if to_var(NewTerm, NewVar)
+			then bind(Binding, [ NewVar ], !Term)
+			else replace(Var, NewTerm, !Term)
+		), bind(Binding, Vars, !Term)
+	) 
+	else bind(Binding, Vars, !Term).
 
-bind(_, [], []).
-bind(Binding, !.Term, !:Term) :- 
-	if to_var(!.Term, Var)
-	then (
-		if search(
-		
+bind(Binding, !Term) :-
+	vars_of(!.Term, Vars),
+	bind(Binding, Vars, !Term),
+	is_ground(!:Term).
+	
+bind(Binding, !.Term) = !:Term :- bind(Binding, !Term).
+
+bind_list(_, [], []).
+
+bind_list(Binding, [ !.Term | !:Terms ], [ !:Term | !:Terms ]) :-
+	bind(Binding, !Term),
+	bind_list(Binding, !Terms).
+	
+bind_list(Binding, !.Terms) = !:Terms :- bind_list(Binding, !Terms).
 
 
 
