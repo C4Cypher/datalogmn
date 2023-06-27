@@ -17,6 +17,7 @@
 :- import_module term.
 :- import_module list.
 :- import_module string.
+:- import_module symbol.
 
 :- type datalog(T). % Type paratemerized to conform to term(T).
 :- type datalog == datalog(generic). 
@@ -29,18 +30,6 @@
 :- mode init(out) is det.
 
 :- pred empty_datalog(datalog(T)::in) is semidet.
-
-% Type for the string functors of atoms
-% When constructing symbols, the string values are interned
-:- type symbol.
-
-:- pred symbol(string, symbol).
-:- mode symbol(in, out) is det.
-:- mode symbol(out,  in) is det.
-
-:- func symbol(string) = symbol.
-:- mode symbol(in) = out is det.
-:- mode symbol(out) = in is det.
 
 :- type relation ---> symbol/int.
 
@@ -216,22 +205,6 @@ init = Datalog :- init(Datalog).
 
 empty_datalog(datalog(Rules, Supply)) :-
 	multi_map.is_empty(Rules), Supply = init_var_supply.
-
-% The symbol type is used to intern string names for relations and atoms
-% I want symbol lookup to be by refrence instead of by value
-:- type symbol == { string }.
-
-
-% table the creation of symbols so that the same string always returns a
-% refrence to the same symbol object, instead of constructing a new one
-:- pragma memo(symbol(in, out)).
-
-symbol(String, { String }).
-
-
-:- pragma memo(symbol(in) = out).
-
-symbol(String) = Symbol :- symbol(String, Symbol).
 
 relation(String, Arity, symbol(String)/Arity).
 
