@@ -40,18 +40,6 @@ symbol(String, { String }).
 
 :- pragma memo(symbol(in) = out).
 
-% The symbol type is used to intern string names for relations and atoms
-% I want symbol lookup to be by refrence instead of by value
-:- type symbol == { string }.
 
-
-% table the creation of symbols so that the same string always returns a
-% refrence to the same symbol object, instead of constructing a new one
-:- pragma memo(symbol(in, out)).
-
-symbol(String, { String }).
-
-
-:- pragma memo(symbol(in) = out).
 
 symbol(String) = Symbol :- symbol(String, Symbol).
